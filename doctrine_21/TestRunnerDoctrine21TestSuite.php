@@ -2,7 +2,7 @@
 
   require dirname(__FILE__) . '/Doctrine21TestSuite.php';
   $time = microtime(true);
-  $memory = memory_get_usage();
+  $memory = memory_get_usage(true);
   $test = new Doctrine21TestSuite();
   $test->initialize();
   $test->run();

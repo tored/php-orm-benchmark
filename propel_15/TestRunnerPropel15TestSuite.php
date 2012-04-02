@@ -2,7 +2,7 @@
 
   require dirname(__FILE__) . '/Propel15TestSuite.php';
   $time = microtime(true);
-  $memory = memory_get_usage();
+  $memory = memory_get_usage(true);
   $test = new Propel15TestSuite();
   $test->initialize();
   $test->run();

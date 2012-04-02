@@ -2,7 +2,7 @@
 
   require dirname(__FILE__) . '/Doctrine22WithCacheTestSuite.php';
   $time = microtime(true);
-  $memory = memory_get_usage();
+  $memory = memory_get_usage(true);
   $test = new Doctrine22WithCacheTestSuite();
   $test->initialize();
   $test->run();
