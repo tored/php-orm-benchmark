@@ -47,8 +47,12 @@ class ArrayStatement implements \IteratorAggregate, ResultStatement
         return $this->columnCount;
     }
 
-    public function setFetchMode($fetchStyle)
+    public function setFetchMode($fetchStyle, $arg2 = null, $arg3 = null)
     {
+        if ($arg2 !== null || $arg3 !== null) {
+            throw new \InvalidArgumentException("Caching layer does not support 2nd/3rd argument to setFetchMode()");
+        }
+
         $this->defaultFetchStyle = $fetchStyle;
     }
 
@@ -68,6 +72,10 @@ class ArrayStatement implements \IteratorAggregate, ResultStatement
                 return array_values($row);
             } else if ($fetchStyle === PDO::FETCH_BOTH) {
                 return array_merge($row, array_values($row));
+            } else if ($fetchStyle === PDO::FETCH_COLUMN) {
+                return reset($row);
+            } else {
+                throw new \InvalidArgumentException("Invalid fetch-style given for fetching result.");
             }
         }
         return false;

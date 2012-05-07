@@ -43,15 +43,19 @@ class Statement implements \IteratorAggregate, DriverStatement
      */
     protected $params = array();
     /**
-     * @var Doctrine\DBAL\Driver\Statement The underlying driver statement.
+     * @var array The parameter types
+     */
+    protected $types = array();
+    /**
+     * @var \Doctrine\DBAL\Driver\Statement The underlying driver statement.
      */
     protected $stmt;
     /**
-     * @var Doctrine\DBAL\Platforms\AbstractPlatform The underlying database platform.
+     * @var \Doctrine\DBAL\Platforms\AbstractPlatform The underlying database platform.
      */
     protected $platform;
     /**
-     * @var Doctrine\DBAL\Connection The connection this statement is bound to and executed on.
+     * @var \Doctrine\DBAL\Connection The connection this statement is bound to and executed on.
      */
     protected $conn;
 
@@ -77,14 +81,15 @@ class Statement implements \IteratorAggregate, DriverStatement
      * type and the value undergoes the conversion routines of the mapping type before
      * being bound.
      *
-     * @param $name The name or position of the parameter.
-     * @param $value The value of the parameter.
+     * @param string $name The name or position of the parameter.
+     * @param mixed $value The value of the parameter.
      * @param mixed $type Either a PDO binding type or a DBAL mapping type name or instance.
      * @return boolean TRUE on success, FALSE on failure.
      */
     public function bindValue($name, $value, $type = null)
     {
         $this->params[$name] = $value;
+        $this->types[$name] = $type;
         if ($type !== null) {
             if (is_string($type)) {
                 $type = Type::getType($type);
@@ -107,7 +112,7 @@ class Statement implements \IteratorAggregate, DriverStatement
      * Binding a parameter by reference does not support DBAL mapping types.
      *
      * @param string $name The name or position of the parameter.
-     * @param mixed $value The reference to the variable to bind
+     * @param mixed $var The reference to the variable to bind
      * @param integer $type The PDO binding type.
      * @return boolean TRUE on success, FALSE on failure.
      */
@@ -119,13 +124,14 @@ class Statement implements \IteratorAggregate, DriverStatement
     /**
      * Executes the statement with the currently bound parameters.
      *
+     * @param array $params
      * @return boolean TRUE on success, FALSE on failure.
      */
     public function execute($params = null)
     {
         $logger = $this->conn->getConfiguration()->getSQLLogger();
         if ($logger) {
-            $logger->startQuery($this->sql, $this->params);
+            $logger->startQuery($this->sql, $this->params, $this->types);
         }
 
         $stmt = $this->stmt->execute($params);
@@ -134,6 +140,7 @@ class Statement implements \IteratorAggregate, DriverStatement
             $logger->stopQuery();
         }
         $this->params = array();
+        $this->types = array();
         return $stmt;
     }
 
@@ -177,9 +184,9 @@ class Statement implements \IteratorAggregate, DriverStatement
         return $this->stmt->errorInfo();
     }
 
-    public function setFetchMode($fetchStyle)
+    public function setFetchMode($fetchStyle, $arg2 = null, $arg3 = null)
     {
-        return $this->stmt->setFetchMode($fetchStyle);
+        return $this->stmt->setFetchMode($fetchStyle, $arg2, $arg3);
     }
 
     public function getIterator()

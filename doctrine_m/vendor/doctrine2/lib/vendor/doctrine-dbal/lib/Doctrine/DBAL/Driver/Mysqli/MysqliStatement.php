@@ -254,9 +254,16 @@ class MysqliStatement implements \IteratorAggregate, Statement
         $fetchStyle = $fetchStyle ?: $this->_defaultFetchStyle;
 
         $a = array();
-        while (($row = $this->fetch($fetchStyle)) !== null) {
-            $a[] = $row;
+        if (PDO::FETCH_COLUMN == $fetchStyle) {
+            while (($value = $this->fetchColumn()) !== null) {
+                $a[] = $value;
+            }
+        } else {
+            while (($row = $this->fetch($fetchStyle)) !== null) {
+                $a[] = $row;
+            }
         }
+
         return $a;
     }
 
@@ -267,7 +274,7 @@ class MysqliStatement implements \IteratorAggregate, Statement
     {
         $row = $this->fetch(PDO::FETCH_NUM);
         if (null === $row) {
-            return null;
+            return false;
         }
         return $row[$columnIndex];
     }
@@ -319,7 +326,7 @@ class MysqliStatement implements \IteratorAggregate, Statement
     /**
      * {@inheritdoc}
      */
-    public function setFetchMode($fetchMode = PDO::FETCH_BOTH)
+    public function setFetchMode($fetchMode = PDO::FETCH_BOTH, $arg2 = null, $arg3 = null)
     {
         $this->_defaultFetchStyle = $fetchMode;
     }
