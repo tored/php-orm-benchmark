@@ -114,8 +114,8 @@ class YamlExporter extends AbstractExporter
             $fieldMappings[$name] = $fieldMapping;
         }
 
-        if ($idGeneratorType = $this->_getIdGeneratorTypeString($metadata->generatorType)) {
-            $ids[$metadata->getSingleIdentifierFieldName()]['generator']['strategy'] = $this->_getIdGeneratorTypeString($metadata->generatorType);
+        if ( ! $metadata->isIdentifierComposite && $idGeneratorType = $this->_getIdGeneratorTypeString($metadata->generatorType)) {
+            $ids[$metadata->getSingleIdentifierFieldName()]['generator']['strategy'] = $idGeneratorType;
         }
 
         if ($ids) {
@@ -172,7 +172,13 @@ class YamlExporter extends AbstractExporter
                 );
 
                 $associationMappingArray = array_merge($associationMappingArray, $oneToOneMappingArray);
-                $array['oneToOne'][$name] = $associationMappingArray;
+
+                if ($associationMapping['type'] & ClassMetadataInfo::ONE_TO_ONE) {
+                    $array['oneToOne'][$name] = $associationMappingArray;
+                } else {
+                    $array['manyToOne'][$name] = $associationMappingArray;
+                }
+
             } else if ($associationMapping['type'] == ClassMetadataInfo::ONE_TO_MANY) {
                 $oneToManyMappingArray = array(
                     'mappedBy'      => $associationMapping['mappedBy'],
