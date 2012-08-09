@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -22,7 +22,7 @@ namespace Doctrine\DBAL\Types;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 
 /**
- * Represents a GUID/UUID datatype (both are actually synomys) in the database.
+ * Represents a GUID/UUID datatype (both are actually synonyms) in the database.
  *
  * @author Benjamin Eberlei <kontakt@beberlei.de>
  * @since 2.3
@@ -31,7 +31,7 @@ class GuidType extends StringType
 {
     public function getSQLDeclaration(array $fieldDeclaration, AbstractPlatform $platform)
     {
-        return $platform->getGuidTypeDeclartionSQL($fieldDeclaration);
+        return $platform->getGuidTypeDeclarationSQL($fieldDeclaration);
     }
 
     public function getName()

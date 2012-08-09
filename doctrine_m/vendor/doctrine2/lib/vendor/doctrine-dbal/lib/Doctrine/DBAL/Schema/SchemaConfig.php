@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -22,7 +22,7 @@ namespace Doctrine\DBAL\Schema;
 /**
  * Configuration for a Schema
  *
- * @license http://www.opensource.org/licenses/lgpl-license.php LGPL
+ * 
  * @link    www.doctrine-project.org
  * @since   2.0
  * @author  Benjamin Eberlei <kontakt@beberlei.de>
@@ -94,7 +94,7 @@ class SchemaConfig
     /**
      * set default namespace name of schema objects.
      *
-     * @param _name the value to set.
+     * @param string $name the value to set.
      */
     public function setName($name)
     {

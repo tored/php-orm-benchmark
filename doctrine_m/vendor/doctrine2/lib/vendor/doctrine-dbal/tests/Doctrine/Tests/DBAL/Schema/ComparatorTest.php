@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -757,6 +757,28 @@ class ComparatorTest extends \PHPUnit_Framework_TestCase
         $diff = $c->compare($oldSchema, $newSchema);
 
         $this->assertEquals(new SchemaDiff(), $c->compare($oldSchema, $newSchema));
+    }
+
+    /**
+     * @group DDC-1657
+     */
+    public function testAutoIncremenetSequences()
+    {
+        $oldSchema = new Schema();
+        $table = $oldSchema->createTable("foo");
+        $table->addColumn("id", "integer", array("autoincrement" => true));
+        $table->setPrimaryKey(array("id"));
+        $oldSchema->createSequence("foo_id_seq");
+
+        $newSchema = new Schema();
+        $table = $newSchema->createTable("foo");
+        $table->addColumn("id", "integer", array("autoincrement" => true));
+        $table->setPrimaryKey(array("id"));
+
+        $c = new Comparator();
+        $diff = $c->compare($oldSchema, $newSchema);
+
+        $this->assertCount(0, $diff->removedSequences);
     }
 
     /**

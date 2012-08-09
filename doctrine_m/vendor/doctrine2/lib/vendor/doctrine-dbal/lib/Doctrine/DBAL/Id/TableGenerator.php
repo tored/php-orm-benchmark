@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -151,7 +151,7 @@ class TableGenerator
 
         } catch(\Exception $e) {
             $this->conn->rollback();
-            throw new \Doctrine\DBAL\DBALException("Error occured while generating ID with TableGenerator, aborted generation: " . $e->getMessage(), 0, $e);
+            throw new \Doctrine\DBAL\DBALException("Error occurred while generating ID with TableGenerator, aborted generation: " . $e->getMessage(), 0, $e);
         }
 
         return $value;

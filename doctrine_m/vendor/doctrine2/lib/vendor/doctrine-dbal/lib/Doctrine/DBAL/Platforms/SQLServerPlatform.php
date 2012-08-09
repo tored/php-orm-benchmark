@@ -14,7 +14,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -317,10 +317,6 @@ class SQLServerPlatform extends AbstractPlatform
         $sql = array();
         $columnSql = array();
 
-        if ($diff->newName !== false) {
-            $queryParts[] = 'RENAME TO ' . $diff->newName;
-        }
-
         foreach ($diff->addedColumns as $column) {
             if ($this->onSchemaAlterTableAddColumn($column, $diff, $columnSql)) {
                 continue;
@@ -342,7 +338,7 @@ class SQLServerPlatform extends AbstractPlatform
                 continue;
             }
 
-            /* @var $columnDiff Doctrine\DBAL\Schema\ColumnDiff */
+            /* @var $columnDiff \Doctrine\DBAL\Schema\ColumnDiff */
             $column = $columnDiff->column;
             $queryParts[] = 'ALTER COLUMN ' .
                     $this->getColumnDeclarationSQL($column->getQuotedName($this), $column->toArray());
@@ -369,6 +365,10 @@ class SQLServerPlatform extends AbstractPlatform
         }
 
         $sql = array_merge($sql, $this->_getAlterTableIndexForeignKeySQL($diff));
+
+        if ($diff->newName !== false) {
+            $sql[] = "sp_RENAME '" . $diff->name . "', '" . $diff->newName . "'";
+        }
 
         return array_merge($sql, $tableSql, $columnSql);
     }
@@ -606,12 +606,12 @@ class SQLServerPlatform extends AbstractPlatform
     }
 
     /**
-     * Decleration for a UNIQUEIDENTIFIER (GUID) field in SQL Server
+     * Declaration for a UNIQUEIDENTIFIER (GUID) field in SQL Server
      *
      * @param array $field
      * @return string
      */
-    public function getGuidTypeDeclartionSQL(array $field)
+    public function getGuidTypeDeclarationSQL(array $field)
     {
         return 'UNIQUEIDENTIFIER';
     }
@@ -704,7 +704,7 @@ class SQLServerPlatform extends AbstractPlatform
                 $start = $offset + 1;
                 $end = $offset + $limit;
 
-                $query = "SELECT * FROM (SELECT ROW_NUMBER() OVER ($over) AS \"doctrine_rownum\", $query) AS doctrine_tbl WHERE \"doctrine_rownum\" BETWEEN $start AND $end";
+                $query = "SELECT * FROM (SELECT ROW_NUMBER() OVER ($over) AS doctrine_rownum, $query) AS doctrine_tbl WHERE doctrine_rownum BETWEEN $start AND $end";
             }
         }
 
@@ -869,7 +869,7 @@ class SQLServerPlatform extends AbstractPlatform
      */
     public function appendLockHint($fromClause, $lockMode)
     {
-        // @todo coorect
+        // @todo correct
         if ($lockMode == \Doctrine\DBAL\LockMode::PESSIMISTIC_READ) {
             return $fromClause . ' WITH (tablockx)';
         } else if ($lockMode == \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE) {

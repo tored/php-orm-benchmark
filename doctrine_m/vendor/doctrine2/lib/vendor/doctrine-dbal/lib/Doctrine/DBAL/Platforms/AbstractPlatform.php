@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -45,7 +45,7 @@ use Doctrine\DBAL\DBALException,
  * point of abstraction of platform-specific behaviors, features and SQL dialects.
  * They are a passive source of information.
  *
- * @license http://www.opensource.org/licenses/lgpl-license.php LGPL
+ * 
  * @link    www.doctrine-project.org
  * @since   2.0
  * @version $Revision: 3938 $
@@ -105,6 +105,13 @@ abstract class AbstractPlatform
      * @var Doctrine\Common\EventManager
      */
     protected $_eventManager;
+
+    /**
+     * Holds the KeywordList instance for the current platform.
+     *
+     * @var Doctrine\DBAL\Platforms\Keywords\KeywordList
+     */
+    protected $_keywords;
 
     /**
      * Constructor.
@@ -179,6 +186,21 @@ abstract class AbstractPlatform
     abstract protected function initializeDoctrineTypeMappings();
 
     /**
+     * Initialize Doctrine Type Mappings with the platform defaults
+     * and with all additional type mappings.
+     */
+    private function initializeAllDoctrineTypeMappings()
+    {
+        $this->initializeDoctrineTypeMappings();
+
+        foreach (Type::getTypesMap() as $typeName => $className) {
+            foreach (Type::getType($typeName)->getMappedDatabaseTypes($this) as $dbType) {
+                $this->doctrineTypeMapping[$dbType] = $typeName;
+            }
+        }
+    }
+
+    /**
      * Gets the SQL snippet used to declare a VARCHAR column type.
      *
      * @param array $field
@@ -207,7 +229,7 @@ abstract class AbstractPlatform
      * @param array $field
      * @return string
      */
-    public function getGuidTypeDeclartionSQL(array $field)
+    public function getGuidTypeDeclarationSQL(array $field)
     {
         return $this->getVarcharTypeDeclarationSQL($field);
     }
@@ -247,7 +269,7 @@ abstract class AbstractPlatform
     public function registerDoctrineTypeMapping($dbType, $doctrineType)
     {
         if ($this->doctrineTypeMapping === null) {
-            $this->initializeDoctrineTypeMappings();
+            $this->initializeAllDoctrineTypeMappings();
         }
 
         if (!Types\Type::hasType($doctrineType)) {
@@ -267,7 +289,7 @@ abstract class AbstractPlatform
     public function getDoctrineTypeMapping($dbType)
     {
         if ($this->doctrineTypeMapping === null) {
-            $this->initializeDoctrineTypeMappings();
+            $this->initializeAllDoctrineTypeMappings();
         }
 
         $dbType = strtolower($dbType);
@@ -287,7 +309,7 @@ abstract class AbstractPlatform
     public function hasDoctrineTypeMappingFor($dbType)
     {
         if ($this->doctrineTypeMapping === null) {
-            $this->initializeDoctrineTypeMappings();
+            $this->initializeAllDoctrineTypeMappings();
         }
 
         $dbType = strtolower($dbType);
@@ -301,7 +323,15 @@ abstract class AbstractPlatform
      */
     protected function initializeCommentedDoctrineTypes()
     {
-        $this->doctrineTypeComments = array(Type::TARRAY, Type::OBJECT);
+        $this->doctrineTypeComments = array();
+
+        foreach (Type::getTypesMap() as $typeName => $className) {
+            $type = Type::getType($typeName);
+
+            if ($type->requiresSQLCommentHint($this)) {
+                $this->doctrineTypeComments[] = $typeName;
+            }
+        }
     }
 
     /**
@@ -322,15 +352,15 @@ abstract class AbstractPlatform
     /**
      * Mark this type as to be commented in ALTER TABLE and CREATE TABLE statements.
      *
-     * @param Type $doctrineType
+     * @param string|Type $doctrineType
      * @return void
      */
-    public function markDoctrineTypeCommented(Type $doctrineType)
+    public function markDoctrineTypeCommented($doctrineType)
     {
         if ($this->doctrineTypeComments === null) {
             $this->initializeCommentedDoctrineTypes();
         }
-        $this->doctrineTypeComments[] = $doctrineType->getName();
+        $this->doctrineTypeComments[] = $doctrineType instanceof Type ? $doctrineType->getName() : $doctrineType;
     }
 
     /**
@@ -678,12 +708,12 @@ abstract class AbstractPlatform
     }
 
     /**
-     * Returns a series of strings concatinated
+     * Returns a series of strings concatenated
      *
      * concat() accepts an arbitrary number of parameters. Each parameter
      * must contain an expression
      *
-     * @param string $arg1, $arg2 ... $argN     strings that will be concatinated.
+     * @param string $arg1, $arg2 ... $argN     strings that will be concatenated.
      * @return string
      */
     public function getConcatExpression()
@@ -1782,7 +1812,7 @@ abstract class AbstractPlatform
 
     /**
      * getCustomTypeDeclarationSql
-     * Obtail SQL code portion needed to create a custom column,
+     * Obtain SQL code portion needed to create a custom column,
      * e.g. when a field has the "columnDefinition" keyword.
      * Only "AUTOINCREMENT" and "PRIMARY KEY" are added if appropriate.
      *
@@ -1974,7 +2004,7 @@ abstract class AbstractPlatform
 
         $sql .= implode(', ', $foreignKey->getLocalColumns())
               . ') REFERENCES '
-              . $foreignKey->getForeignTableName() . ' ('
+              . $foreignKey->getQuotedForeignTableName($this) . ' ('
               . implode(', ', $foreignKey->getForeignColumns()) . ')';
 
         return $sql;
@@ -2060,20 +2090,6 @@ abstract class AbstractPlatform
             $item = (int) $item;
         }
         return $item;
-    }
-
-    /**
-     * Gets the SQL statement specific for the platform to set the charset.
-     *
-     * This function is MySQL specific and required by
-     * {@see \Doctrine\DBAL\Connection::setCharset($charset)}
-     *
-     * @param string $charset
-     * @return string
-     */
-    public function getSetCharsetSQL($charset)
-    {
-        return "SET NAMES '".$charset."'";
     }
 
     /**
@@ -2303,7 +2319,7 @@ abstract class AbstractPlatform
 
     /**
      * Whether the platform supports identity columns.
-     * Identity columns are columns that recieve an auto-generated value from the
+     * Identity columns are columns that receive an auto-generated value from the
      * database on insert of a row.
      *
      * @return boolean
@@ -2434,7 +2450,7 @@ abstract class AbstractPlatform
     }
 
     /**
-     * Does this plaform support to add inline column comments as postfix.
+     * Does this platform support to add inline column comments as postfix.
      *
      * @return bool
      */
@@ -2444,7 +2460,7 @@ abstract class AbstractPlatform
     }
 
     /**
-     * Does this platform support the propriortary synatx "COMMENT ON asset"
+     * Does this platform support the proprietary syntax "COMMENT ON asset"
      *
      * @return bool
      */
@@ -2593,7 +2609,7 @@ abstract class AbstractPlatform
     }
 
     /**
-     * Maximum length of any given databse identifier, like tables or column names.
+     * Maximum length of any given database identifier, like tables or column names.
      *
      * @return int
      */
@@ -2678,15 +2694,24 @@ abstract class AbstractPlatform
      * Throws exception if no keyword list is specified.
      *
      * @throws DBALException
-     * @return KeywordList
+     * @return \Doctrine\DBAL\Platforms\Keywords\KeywordList
      */
     final public function getReservedKeywordsList()
     {
+        // Check for an existing instantiation of the keywords class.
+        if ($this->_keywords) {
+            return $this->_keywords;
+        }
+
         $class = $this->getReservedKeywordsClass();
         $keywords = new $class;
         if ( ! $keywords instanceof \Doctrine\DBAL\Platforms\Keywords\KeywordList) {
             throw DBALException::notSupported(__METHOD__);
         }
+
+        // Store the instance so it doesn't need to be generated on every request.
+        $this->_keywords = $keywords;
+
         return $keywords;
     }
 

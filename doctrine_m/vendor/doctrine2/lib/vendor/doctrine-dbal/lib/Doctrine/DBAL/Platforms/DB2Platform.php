@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
 */
 
@@ -397,7 +397,7 @@ class DB2Platform extends AbstractPlatform
                 continue;
             }
 
-            /* @var $columnDiff Doctrine\DBAL\Schema\ColumnDiff */
+            /* @var $columnDiff \Doctrine\DBAL\Schema\ColumnDiff */
             $column = $columnDiff->column;
             $queryParts[] =  'ALTER ' . ($columnDiff->oldColumnName) . ' '
                     . $this->getColumnDeclarationSQL($column->getQuotedName($this), $column->toArray());

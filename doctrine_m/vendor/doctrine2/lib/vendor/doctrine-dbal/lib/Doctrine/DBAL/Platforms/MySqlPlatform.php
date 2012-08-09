@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -87,12 +87,12 @@ class MySqlPlatform extends AbstractPlatform
     }
 
     /**
-     * Returns a series of strings concatinated
+     * Returns a series of strings concatenated
      *
      * concat() accepts an arbitrary number of parameters. Each parameter
      * must contain an expression or an array with expressions.
      *
-     * @param string|array(string) strings that will be concatinated.
+     * @param string|array(string) strings that will be concatenated.
      * @override
      */
     public function getConcatExpression()
@@ -138,7 +138,7 @@ class MySqlPlatform extends AbstractPlatform
 
     /**
      * Two approaches to listing the table indexes. The information_schema is
-     * prefered, because it doesn't cause problems with SQL keywords such as "order" or "table".
+     * preferred, because it doesn't cause problems with SQL keywords such as "order" or "table".
      *
      * @param string $table
      * @param string $currentDatabase
@@ -380,7 +380,7 @@ class MySqlPlatform extends AbstractPlatform
      *                              )
      *                          );
      *
-     * @return void
+     * @return string
      * @override
      */
     protected function _getCreateTableSQL($tableName, array $columns, array $options = array())
@@ -480,7 +480,7 @@ class MySqlPlatform extends AbstractPlatform
                 continue;
             }
 
-            /* @var $columnDiff Doctrine\DBAL\Schema\ColumnDiff */
+            /* @var $columnDiff \Doctrine\DBAL\Schema\ColumnDiff */
             $column = $columnDiff->column;
             $columnArray = $column->toArray();
             $columnArray['comment'] = $this->getColumnComment($column);
@@ -633,7 +633,7 @@ class MySqlPlatform extends AbstractPlatform
      * Return the FOREIGN KEY query section dealing with non-standard options
      * as MATCH, INITIALLY DEFERRED, ON UPDATE, ...
      *
-     * @param ForeignKeyConstraint $foreignKey
+     * @param \Doctrine\DBAL\Schema\ForeignKeyConstraint $foreignKey
      * @return string
      * @override
      */

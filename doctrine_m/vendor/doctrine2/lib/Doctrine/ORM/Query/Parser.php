@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -135,6 +135,22 @@ class Parser
      * @var array
      */
     private $_identVariableExpressions = array();
+
+    /**
+     * Check if a function is internally defined. Used to prevent overwriting
+     * of built-in functions through user-defined functions.
+     *
+     * @param string $functionName
+     * @return bool
+     */
+    static public function isInternalFunction($functionName)
+    {
+        $functionName = strtolower($functionName);
+
+        return isset(self::$_STRING_FUNCTIONS[$functionName])
+            || isset(self::$_DATETIME_FUNCTIONS[$functionName])
+            || isset(self::$_NUMERIC_FUNCTIONS[$functionName]);
+    }
 
     /**
      * Creates a new query parser object.
@@ -377,7 +393,7 @@ class Parser
         $message .= ($expected !== '') ? "Expected {$expected}, got " : 'Unexpected ';
         $message .= ($this->_lexer->lookahead === null) ? 'end of string.' : "'{$token['value']}'";
 
-        throw QueryException::syntaxError($message);
+        throw QueryException::syntaxError($message, QueryException::dqlError($this->_query->getDQL()));
     }
 
     /**
@@ -410,7 +426,7 @@ class Parser
         // Building informative message
         $message = 'line 0, col ' . $tokenPos . " near '" . $tokenStr . "': Error: " . $message;
 
-        throw QueryException::semanticalError($message);
+        throw QueryException::semanticalError($message, QueryException::dqlError($this->_query->getDQL()));
     }
 
     /**
@@ -905,7 +921,7 @@ class Parser
         $qComp = $this->_queryComponents[$identVariable];
         $class = $qComp['metadata'];
 
-        if ( ! isset($class->associationMappings[$field])) {
+        if ( ! $class->hasAssociation($field)) {
             $this->semanticalError('Class ' . $class->name . ' has no association named ' . $field);
         }
 
@@ -1381,7 +1397,7 @@ class Parser
      *
      * NewValue ::= SimpleArithmeticExpression | "NULL"
      *
-     * SimpleArithmeticExpression covers all *Primary grammar rules and also SimplEntityExpression
+     * SimpleArithmeticExpression covers all *Primary grammar rules and also SimpleEntityExpression
      */
     public function NewValue()
     {
@@ -1401,7 +1417,7 @@ class Parser
     }
 
     /**
-     * IdentificationVariableDeclaration ::= RangeVariableDeclaration [IndexBy] {JoinVariableDeclaration}*
+     * IdentificationVariableDeclaration ::= RangeVariableDeclaration [IndexBy] {Join}*
      *
      * @return \Doctrine\ORM\Query\AST\IdentificationVariableDeclaration
      */
@@ -1409,18 +1425,18 @@ class Parser
     {
         $rangeVariableDeclaration = $this->RangeVariableDeclaration();
         $indexBy = $this->_lexer->isNextToken(Lexer::T_INDEX) ? $this->IndexBy() : null;
-        $joinVariableDeclarations = array();
+        $joins   = array();
 
         while (
             $this->_lexer->isNextToken(Lexer::T_LEFT) ||
             $this->_lexer->isNextToken(Lexer::T_INNER) ||
             $this->_lexer->isNextToken(Lexer::T_JOIN)
         ) {
-            $joinVariableDeclarations[] = $this->JoinVariableDeclaration();
+            $joins[] = $this->Join();
         }
 
         return new AST\IdentificationVariableDeclaration(
-            $rangeVariableDeclaration, $indexBy, $joinVariableDeclarations
+            $rangeVariableDeclaration, $indexBy, $joins
         );
     }
 
@@ -1450,16 +1466,57 @@ class Parser
     }
 
     /**
-     * JoinVariableDeclaration ::= Join [IndexBy]
+     * Join ::= ["LEFT" ["OUTER"] | "INNER"] "JOIN"
+     *          (JoinAssociationDeclaration | RangeVariableDeclaration)
+     *          ["WITH" ConditionalExpression]
      *
-     * @return \Doctrine\ORM\Query\AST\JoinVariableDeclaration
+     * @return \Doctrine\ORM\Query\AST\Join
      */
-    public function JoinVariableDeclaration()
+    public function Join()
     {
-        $join    = $this->Join();
-        $indexBy = $this->_lexer->isNextToken(Lexer::T_INDEX) ? $this->IndexBy() : null;
+        // Check Join type
+        $joinType = AST\Join::JOIN_TYPE_INNER;
 
-        return new AST\JoinVariableDeclaration($join, $indexBy);
+        switch (true) {
+            case ($this->_lexer->isNextToken(Lexer::T_LEFT)):
+                $this->match(Lexer::T_LEFT);
+
+                $joinType = AST\Join::JOIN_TYPE_LEFT;
+
+                // Possible LEFT OUTER join
+                if ($this->_lexer->isNextToken(Lexer::T_OUTER)) {
+                    $this->match(Lexer::T_OUTER);
+
+                    $joinType = AST\Join::JOIN_TYPE_LEFTOUTER;
+                }
+                break;
+
+            case ($this->_lexer->isNextToken(Lexer::T_INNER)):
+                $this->match(Lexer::T_INNER);
+                break;
+
+            default:
+                // Do nothing
+        }
+
+        $this->match(Lexer::T_JOIN);
+
+        $next            = $this->_lexer->glimpse();
+        $joinDeclaration = ($next['type'] === Lexer::T_DOT)
+            ? $this->JoinAssociationDeclaration()
+            : $this->RangeVariableDeclaration();
+
+        // Create AST node
+        $join = new AST\Join($joinType, $joinDeclaration);
+
+        // Check for ad-hoc Join conditions
+        if ($this->_lexer->isNextToken(Lexer::T_WITH) || $joinDeclaration instanceof AST\RangeVariableDeclaration) {
+            $this->match(Lexer::T_WITH);
+
+            $join->conditionalExpression = $this->ConditionalExpression();
+        }
+
+        return $join;
     }
 
     /**
@@ -1492,6 +1549,43 @@ class Parser
         $this->_queryComponents[$aliasIdentificationVariable] = $queryComponent;
 
         return new AST\RangeVariableDeclaration($abstractSchemaName, $aliasIdentificationVariable);
+    }
+
+    /**
+     * JoinAssociationDeclaration ::= JoinAssociationPathExpression ["AS"] AliasIdentificationVariable [IndexBy]
+     *
+     * @return \Doctrine\ORM\Query\AST\JoinAssociationPathExpression
+     */
+    public function JoinAssociationDeclaration()
+    {
+        $joinAssociationPathExpression = $this->JoinAssociationPathExpression();
+
+        if ($this->_lexer->isNextToken(Lexer::T_AS)) {
+            $this->match(Lexer::T_AS);
+        }
+
+        $aliasIdentificationVariable = $this->AliasIdentificationVariable();
+        $indexBy                     = $this->_lexer->isNextToken(Lexer::T_INDEX) ? $this->IndexBy() : null;
+
+        $identificationVariable = $joinAssociationPathExpression->identificationVariable;
+        $field                  = $joinAssociationPathExpression->associationField;
+
+        $class       = $this->_queryComponents[$identificationVariable]['metadata'];
+        $targetClass = $this->_em->getClassMetadata($class->associationMappings[$field]['targetEntity']);
+
+        // Building queryComponent
+        $joinQueryComponent = array(
+            'metadata'     => $targetClass,
+            'parent'       => $joinAssociationPathExpression->identificationVariable,
+            'relation'     => $class->getAssociationMapping($field),
+            'map'          => null,
+            'nestingLevel' => $this->_nestingLevel,
+            'token'        => $this->_lexer->lookahead
+        );
+
+        $this->_queryComponents[$aliasIdentificationVariable] = $joinQueryComponent;
+
+        return new AST\JoinAssociationDeclaration($joinAssociationPathExpression, $aliasIdentificationVariable, $indexBy);
     }
 
     /**
@@ -1533,87 +1627,6 @@ class Parser
         );
 
         return $partialObjectExpression;
-    }
-
-    /**
-     * Join ::= ["LEFT" ["OUTER"] | "INNER"] "JOIN" JoinAssociationPathExpression
-     *          ["AS"] AliasIdentificationVariable ["WITH" ConditionalExpression]
-     *
-     * @return \Doctrine\ORM\Query\AST\Join
-     */
-    public function Join()
-    {
-        // Check Join type
-        $joinType = AST\Join::JOIN_TYPE_INNER;
-
-        switch (true) {
-            case ($this->_lexer->isNextToken(Lexer::T_LEFT)):
-                $this->match(Lexer::T_LEFT);
-
-                $joinType = AST\Join::JOIN_TYPE_LEFT;
-
-                // Possible LEFT OUTER join
-                if ($this->_lexer->isNextToken(Lexer::T_OUTER)) {
-                    $this->match(Lexer::T_OUTER);
-
-                    $joinType = AST\Join::JOIN_TYPE_LEFTOUTER;
-                }
-                break;
-
-            case ($this->_lexer->isNextToken(Lexer::T_INNER)):
-                $this->match(Lexer::T_INNER);
-                break;
-
-            default:
-                // Do nothing
-        }
-
-        $this->match(Lexer::T_JOIN);
-
-        $joinPathExpression = $this->JoinAssociationPathExpression();
-
-        if ($this->_lexer->isNextToken(Lexer::T_AS)) {
-            $this->match(Lexer::T_AS);
-        }
-
-        $token = $this->_lexer->lookahead;
-        $aliasIdentificationVariable = $this->AliasIdentificationVariable();
-
-        // Verify that the association exists.
-        $parentClass = $this->_queryComponents[$joinPathExpression->identificationVariable]['metadata'];
-        $assocField  = $joinPathExpression->associationField;
-
-        if ( ! $parentClass->hasAssociation($assocField)) {
-            $this->semanticalError(
-                "Class " . $parentClass->name . " has no association named '$assocField'."
-            );
-        }
-
-        $targetClassName = $parentClass->associationMappings[$assocField]['targetEntity'];
-
-        // Building queryComponent
-        $joinQueryComponent = array(
-            'metadata'     => $this->_em->getClassMetadata($targetClassName),
-            'parent'       => $joinPathExpression->identificationVariable,
-            'relation'     => $parentClass->getAssociationMapping($assocField),
-            'map'          => null,
-            'nestingLevel' => $this->_nestingLevel,
-            'token'        => $token
-        );
-
-        $this->_queryComponents[$aliasIdentificationVariable] = $joinQueryComponent;
-
-        // Create AST node
-        $join = new AST\Join($joinType, $joinPathExpression, $aliasIdentificationVariable);
-
-        // Check for ad-hoc Join conditions
-        if ($this->_lexer->isNextToken(Lexer::T_WITH)) {
-            $this->match(Lexer::T_WITH);
-
-            $join->conditionalExpression = $this->ConditionalExpression();
-        }
-
-        return $join;
     }
 
     /**
@@ -2483,7 +2496,8 @@ class Parser
     /**
      * ArithmeticPrimary ::= SingleValuedPathExpression | Literal | "(" SimpleArithmeticExpression ")"
      *          | FunctionsReturningNumerics | AggregateExpression | FunctionsReturningStrings
-     *          | FunctionsReturningDatetime | IdentificationVariable | ResultVariable | CaseExpression
+     *          | FunctionsReturningDatetime | IdentificationVariable | ResultVariable
+     *          | InputParameter | CaseExpression
      */
     public function ArithmeticPrimary()
     {

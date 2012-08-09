@@ -13,13 +13,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
 namespace Doctrine\Common\Collections;
 
 use Closure, ArrayIterator;
+use Doctrine\Common\Collections\Expr\Expression;
+use Doctrine\Common\Collections\Expr\ClosureExpressionVisitor;
 
 /**
  * An ArrayCollection is a Collection implementation that wraps a regular PHP array.
@@ -29,7 +31,7 @@ use Closure, ArrayIterator;
  * @author  Jonathan Wage <jonwage@gmail.com>
  * @author  Roman Borschel <roman@code-factory.org>
  */
-class ArrayCollection implements Collection
+class ArrayCollection implements Collection, Selectable
 {
     /**
      * An array containing the entries of this collection.
@@ -457,4 +459,42 @@ class ArrayCollection implements Collection
     {
         return array_slice($this->_elements, $offset, $length, true);
     }
+
+    /**
+     * Select all elements from a selectable that match the criteria and
+     * return a new collection containing these elements.
+     *
+     * @param  Criteria $criteria
+     * @return Collection
+     */
+    public function matching(Criteria $criteria)
+    {
+        $expr     = $criteria->getWhereExpression();
+        $filtered = $this->_elements;
+
+        if ($expr) {
+            $visitor  = new ClosureExpressionVisitor();
+            $filter   = $visitor->dispatch($expr);
+            $filtered = array_filter($filtered, $filter);
+        }
+
+        if ($orderings = $criteria->getOrderings()) {
+            $next = null;
+            foreach (array_reverse($orderings) as $field => $ordering) {
+                $next = ClosureExpressionVisitor::sortByField($field, $ordering == 'DESC' ? -1 : 1, $next);
+            }
+
+            usort($filtered, $next);
+        }
+
+        $offset = $criteria->getFirstResult();
+        $length = $criteria->getMaxResults();
+
+        if ($offset || $length) {
+            $filtered = array_slice($filtered, (int)$offset, $length);
+        }
+
+        return new static($filtered);
+    }
 }
+

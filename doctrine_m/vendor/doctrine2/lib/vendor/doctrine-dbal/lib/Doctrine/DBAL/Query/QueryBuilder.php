@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -962,7 +962,7 @@ class QueryBuilder
             $fromClauses[$from['alias']] = $fromClause;
         }
 
-        // loop through all JOIN clasues for validation purpose
+        // loop through all JOIN clauses for validation purpose
         foreach ($this->sqlParts['join'] as $fromAlias => $joins) {
             if ( ! isset($fromClauses[$fromAlias]) ) {
                 throw QueryException::unknownFromAlias($fromAlias, array_keys($fromClauses));
