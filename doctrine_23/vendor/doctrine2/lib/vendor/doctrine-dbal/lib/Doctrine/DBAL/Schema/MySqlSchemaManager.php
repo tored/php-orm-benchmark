@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -100,7 +100,7 @@ class MySqlSchemaManager extends AbstractSchemaManager
             $decimal = strtok('(), ') ? strtok('(), '):null;
         }
         $type = array();
-        $unsigned = $fixed = null;
+        $fixed = null;
 
         if ( ! isset($tableColumn['name'])) {
             $tableColumn['name'] = '';
@@ -138,8 +138,6 @@ class MySqlSchemaManager extends AbstractSchemaManager
             case 'mediumblob':
             case 'longblob':
             case 'blob':
-            case 'binary':
-            case 'varbinary':
             case 'year':
                 $length = null;
                 break;
@@ -149,7 +147,7 @@ class MySqlSchemaManager extends AbstractSchemaManager
 
         $options = array(
             'length'        => $length,
-            'unsigned'      => (bool) $unsigned,
+            'unsigned'      => (bool) (strpos($tableColumn['type'], 'unsigned') !== false),
             'fixed'         => (bool) $fixed,
             'default'       => isset($tableColumn['default']) ? $tableColumn['default'] : null,
             'notnull'       => (bool) ($tableColumn['null'] != 'YES'),

@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
 */
 
@@ -45,6 +45,7 @@ class OracleSessionInit implements EventSubscriber
         'NLS_DATE_FORMAT' => "YYYY-MM-DD HH24:MI:SS",
         'NLS_TIMESTAMP_FORMAT' => "YYYY-MM-DD HH24:MI:SS",
         'NLS_TIMESTAMP_TZ_FORMAT' => "YYYY-MM-DD HH24:MI:SS TZH:TZM",
+        'NLS_NUMERIC_CHARACTERS' => ".,",
     );
 
     /**

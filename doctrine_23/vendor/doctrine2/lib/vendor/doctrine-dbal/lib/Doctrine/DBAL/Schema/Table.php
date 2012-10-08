@@ -15,7 +15,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -28,7 +28,7 @@ use Doctrine\DBAL\DBALException;
 /**
  * Object Representation of a table
  *
- * @license http://www.opensource.org/licenses/lgpl-license.php LGPL
+ * 
  * @link    www.doctrine-project.org
  * @since   2.0
  * @version $Revision$
@@ -270,11 +270,9 @@ class Table extends AbstractAsset
      */
     public function renameColumn($oldColumnName, $newColumnName)
     {
-        $column = $this->getColumn($oldColumnName);
-        $this->dropColumn($oldColumnName);
-
-        $column->_setName($newColumnName);
-        return $this;
+        throw new DBALException("Table#renameColumn() was removed, because it drops and recreates " .
+            "the column instead. There is no fix available, because a schema diff cannot reliably detect if a " .
+            "column was renamed or one column was created and another one dropped.");
     }
 
     /**
@@ -565,6 +563,14 @@ class Table extends AbstractAsset
             return null;
         }
         return $this->getIndex($this->_primaryKeyName);
+    }
+
+    public function getPrimaryKeyColumns()
+    {
+        if ( ! $this->hasPrimaryKey()) {
+            throw new DBALException("Table " . $this->getName() . " has no primary key.");
+        }
+        return $this->getPrimaryKey()->getColumns();
     }
 
     /**

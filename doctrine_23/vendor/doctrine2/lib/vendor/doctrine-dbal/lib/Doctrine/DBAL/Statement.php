@@ -15,7 +15,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -116,9 +116,9 @@ class Statement implements \IteratorAggregate, DriverStatement
      * @param integer $type The PDO binding type.
      * @return boolean TRUE on success, FALSE on failure.
      */
-    public function bindParam($name, &$var, $type = PDO::PARAM_STR)
+    public function bindParam($name, &$var, $type = PDO::PARAM_STR, $length = null)
     {
-        return $this->stmt->bindParam($name, $var, $type);
+        return $this->stmt->bindParam($name, $var, $type, $length );
     }
 
     /**
@@ -134,7 +134,11 @@ class Statement implements \IteratorAggregate, DriverStatement
             $logger->startQuery($this->sql, $this->params, $this->types);
         }
 
-        $stmt = $this->stmt->execute($params);
+        try {
+            $stmt = $this->stmt->execute($params);
+        } catch (\Exception $ex) {
+            throw DBALException::driverExceptionDuringQuery($ex, $this->sql, $this->conn->resolveParams($this->params, $this->types));
+        }
 
         if ($logger) {
             $logger->stopQuery();
@@ -184,9 +188,15 @@ class Statement implements \IteratorAggregate, DriverStatement
         return $this->stmt->errorInfo();
     }
 
-    public function setFetchMode($fetchStyle, $arg2 = null, $arg3 = null)
+    public function setFetchMode($fetchMode, $arg2 = null, $arg3 = null)
     {
-        return $this->stmt->setFetchMode($fetchStyle, $arg2, $arg3);
+        if ($arg2 === null) {
+            return $this->stmt->setFetchMode($fetchMode);
+        } else if ($arg3 === null) {
+            return $this->stmt->setFetchMode($fetchMode, $arg2);
+        }
+
+        return $this->stmt->setFetchMode($fetchMode, $arg2, $arg3);
     }
 
     public function getIterator()
@@ -197,28 +207,28 @@ class Statement implements \IteratorAggregate, DriverStatement
     /**
      * Fetches the next row from a result set.
      *
-     * @param integer $fetchStyle
+     * @param integer $fetchMode
      * @return mixed The return value of this function on success depends on the fetch type.
      *               In all cases, FALSE is returned on failure.
      */
-    public function fetch($fetchStyle = PDO::FETCH_BOTH)
+    public function fetch($fetchMode = null)
     {
-        return $this->stmt->fetch($fetchStyle);
+        return $this->stmt->fetch($fetchMode);
     }
 
     /**
      * Returns an array containing all of the result set rows.
      *
-     * @param integer $fetchStyle
+     * @param integer $fetchMode
      * @param mixed $fetchArgument
      * @return array An array containing all of the remaining rows in the result set.
      */
-    public function fetchAll($fetchStyle = PDO::FETCH_BOTH, $fetchArgument = 0)
+    public function fetchAll($fetchMode = null, $fetchArgument = 0)
     {
         if ($fetchArgument !== 0) {
-            return $this->stmt->fetchAll($fetchStyle, $fetchArgument);
+            return $this->stmt->fetchAll($fetchMode, $fetchArgument);
         }
-        return $this->stmt->fetchAll($fetchStyle);
+        return $this->stmt->fetchAll($fetchMode);
     }
 
     /**

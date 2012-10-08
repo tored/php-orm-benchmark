@@ -13,14 +13,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
 namespace Doctrine\ORM\Tools;
 
 use Doctrine\ORM\Mapping\ClassMetadataInfo,
-    Doctrine\ORM\Mapping\AssociationMapping,
     Doctrine\Common\Util\Inflector,
     Doctrine\DBAL\Types\Type;
 
@@ -37,7 +36,7 @@ use Doctrine\ORM\Mapping\ClassMetadataInfo,
  *     $generator->setUpdateEntityIfExists(true);
  *     $generator->generate($classes, '/path/to/generate/entities');
  *
- * @license http://www.opensource.org/licenses/lgpl-license.php LGPL
+ *
  * @link    www.doctrine-project.org
  * @since   2.0
  * @author  Benjamin Eberlei <kontakt@beberlei.de>
@@ -154,6 +153,8 @@ class EntityGenerator
         Type::TEXT          => 'string',
         Type::BLOB          => 'string',
         Type::DECIMAL       => 'float',
+        Type::JSON_ARRAY    => 'array',
+        Type::SIMPLE_ARRAY  => 'array',
     );
 
     /**
@@ -200,6 +201,7 @@ public function <methodName>()
 public function <methodName>(<methodTypeHint>$<variableName><variableDefault>)
 {
 <spaces>$this-><fieldName> = $<variableName>;
+
 <spaces>return $this;
 }';
 
@@ -216,7 +218,22 @@ public function <methodName>(<methodTypeHint>$<variableName><variableDefault>)
 public function <methodName>(<methodTypeHint>$<variableName>)
 {
 <spaces>$this-><fieldName>[] = $<variableName>;
+
 <spaces>return $this;
+}';
+
+    /**
+     * @var string
+     */
+    private static $removeMethodTemplate =
+'/**
+ * <description>
+ *
+ * @param <variableType>$<variableName>
+ */
+public function <methodName>(<methodTypeHint>$<variableName>)
+{
+<spaces>$this-><fieldName>->removeElement($<variableName>);
 }';
 
     /**
@@ -235,7 +252,10 @@ public function <methodName>()
      * @var string
      */
     private static $constructorMethodTemplate =
-'public function __construct()
+'/**
+ * Constructor
+ */
+public function __construct()
 {
 <spaces><collections>
 }
@@ -789,6 +809,9 @@ public function <methodName>()
                 if ($code = $this->generateEntityStubMethod($metadata, 'add', $associationMapping['fieldName'], $associationMapping['targetEntity'])) {
                     $methods[] = $code;
                 }
+                if ($code = $this->generateEntityStubMethod($metadata, 'remove', $associationMapping['fieldName'], $associationMapping['targetEntity'])) {
+                    $methods[] = $code;
+                }
                 if ($code = $this->generateEntityStubMethod($metadata, 'get', $associationMapping['fieldName'], 'Doctrine\Common\Collections\Collection')) {
                     $methods[] = $code;
                 }
@@ -873,12 +896,9 @@ public function <methodName>()
 
     private function generateEntityStubMethod(ClassMetadataInfo $metadata, $type, $fieldName, $typeHint = null,  $defaultValue = null)
     {
-        if ($type == "add") {
-            $addMethod = explode("\\", $typeHint);
-            $addMethod = end($addMethod);
-            $methodName = $type . $addMethod;
-        } else {
-            $methodName = $type . Inflector::classify($fieldName);
+        $methodName = $type . Inflector::classify($fieldName);
+        if (in_array($type, array("add", "remove")) && substr($methodName, -1) == "s") {
+            $methodName = substr($methodName, 0, -1);
         }
 
         if ($this->hasMethod($methodName, $metadata)) {
@@ -978,10 +998,10 @@ public function <methodName>()
 
         if ($this->generateAnnotations) {
             $lines[] = $this->spaces . ' *';
-            
+
             if (isset($associationMapping['id']) && $associationMapping['id']) {
                 $lines[] = $this->spaces . ' * @' . $this->annotationsPrefix . 'Id';
-            
+
                 if ($generatorType = $this->getIdGeneratorTypeString($metadata->generatorType)) {
                     $lines[] = $this->spaces . ' * @' . $this->annotationsPrefix . 'GeneratedValue(strategy="' . $generatorType . '")';
                 }

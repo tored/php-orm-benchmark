@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -127,8 +127,10 @@ class Paginator implements \Countable, \IteratorAggregate
             }
 
             if ($this->useOutputWalker($countQuery)) {
+                $platform = $countQuery->getEntityManager()->getConnection()->getDatabasePlatform(); // law of demeter win
+
                 $rsm = new ResultSetMapping();
-                $rsm->addScalarResult('_dctrn_count', 'count');
+                $rsm->addScalarResult($platform->getSQLResultCasing('dctrn_count'), 'count');
 
                 $countQuery->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Doctrine\ORM\Tools\Pagination\CountOutputWalker');
                 $countQuery->setResultSetMapping($rsm);
@@ -172,16 +174,18 @@ class Paginator implements \Countable, \IteratorAggregate
 
             $whereInQuery = $this->cloneQuery($this->query);
             // don't do this for an empty id array
-            if (count($ids) > 0) {
-                $namespace = WhereInWalker::PAGINATOR_ID_ALIAS;
+            if (count($ids) == 0) {
+                return new \ArrayIterator(array());
+            }
 
-                $whereInQuery->setHint(Query::HINT_CUSTOM_TREE_WALKERS, array('Doctrine\ORM\Tools\Pagination\WhereInWalker'));
-                $whereInQuery->setHint(WhereInWalker::HINT_PAGINATOR_ID_COUNT, count($ids));
-                $whereInQuery->setFirstResult(null)->setMaxResults(null);
-                foreach ($ids as $i => $id) {
-                    $i++;
-                    $whereInQuery->setParameter("{$namespace}_{$i}", $id);
-                }
+            $namespace = WhereInWalker::PAGINATOR_ID_ALIAS;
+
+            $whereInQuery->setHint(Query::HINT_CUSTOM_TREE_WALKERS, array('Doctrine\ORM\Tools\Pagination\WhereInWalker'));
+            $whereInQuery->setHint(WhereInWalker::HINT_PAGINATOR_ID_COUNT, count($ids));
+            $whereInQuery->setFirstResult(null)->setMaxResults(null);
+            foreach ($ids as $i => $id) {
+                $i++;
+                $whereInQuery->setParameter("{$namespace}_{$i}", $id);
             }
 
             $result = $whereInQuery->getResult($this->query->getHydrationMode());
@@ -206,7 +210,9 @@ class Paginator implements \Countable, \IteratorAggregate
     {
         /* @var $cloneQuery Query */
         $cloneQuery = clone $query;
-        $cloneQuery->setParameters($query->getParameters());
+
+        $cloneQuery->setParameters(clone $query->getParameters());
+
         foreach ($query->getHints() as $name => $value) {
             $cloneQuery->setHint($name, $value);
         }

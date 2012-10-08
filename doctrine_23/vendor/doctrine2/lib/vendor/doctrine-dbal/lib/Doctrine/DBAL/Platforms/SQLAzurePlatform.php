@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -30,6 +30,9 @@ use Doctrine\DBAL\Schema\Table;
  */
 class SQLAzurePlatform extends SQLServer2008Platform
 {
+    /**
+     * {@inheritDoc}
+     */
     public function getCreateTableSQL(Table $table, $createFlags=self::CREATE_INDEXES)
     {
         $sql = parent::getCreateTableSQL($table, $createFlags);
@@ -41,6 +44,7 @@ class SQLAzurePlatform extends SQLServer2008Platform
 
             $sql[0] = $sql[0] . $stmt;
         }
+
         return $sql;
     }
 }

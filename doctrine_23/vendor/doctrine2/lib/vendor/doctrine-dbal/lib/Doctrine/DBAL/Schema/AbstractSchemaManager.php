@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -403,7 +403,7 @@ abstract class AbstractSchemaManager
      * Create a new sequence
      *
      * @param Sequence $sequence
-     * @throws Doctrine\DBAL\ConnectionException     if something fails at database level
+     * @throws \Doctrine\DBAL\ConnectionException     if something fails at database level
      */
     public function createSequence($sequence)
     {

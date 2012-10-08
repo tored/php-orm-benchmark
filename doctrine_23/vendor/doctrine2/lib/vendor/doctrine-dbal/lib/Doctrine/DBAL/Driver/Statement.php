@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -70,9 +70,10 @@ interface Statement extends ResultStatement
      * @param integer $type         Explicit data type for the parameter using the PDO::PARAM_* constants. To return
      *                              an INOUT parameter from a stored procedure, use the bitwise OR operator to set the
      *                              PDO::PARAM_INPUT_OUTPUT bits for the data_type parameter.
+     * @param integer $length		You must specify maxlength when using an OUT bind so that PHP allocates enough memory to hold the returned value.
      * @return boolean              Returns TRUE on success or FALSE on failure.
      */
-    function bindParam($column, &$variable, $type = null);
+    function bindParam($column, &$variable, $type = null, $length = null);
 
     /**
      * errorCode

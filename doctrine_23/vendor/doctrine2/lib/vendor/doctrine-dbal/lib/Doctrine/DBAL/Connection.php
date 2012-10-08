@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -34,7 +34,7 @@ use PDO, Closure, Exception,
  * events, transaction isolation levels, configuration, emulated transaction nesting,
  * lazy connecting and more.
  *
- * @license http://www.opensource.org/licenses/lgpl-license.php LGPL
+ * 
  * @link    www.doctrine-project.org
  * @since   2.0
  * @author  Guilherme Blanco <guilhermeblanco@hotmail.com>
@@ -105,7 +105,7 @@ class Connection implements DriverConnection
     protected $_eventManager;
 
     /**
-     * @var \Doctrine\DBAL\Query\ExpressionBuilder
+     * @var \Doctrine\DBAL\Query\Expression\ExpressionBuilder
      */
     protected $_expr;
 
@@ -172,6 +172,8 @@ class Connection implements DriverConnection
      * @var boolean
      */
     private $_isRollbackOnly = false;
+
+    private $_defaultFetchMode = PDO::FETCH_ASSOC;
 
     /**
      * Initializes a new instance of the Connection class.
@@ -357,6 +359,16 @@ class Connection implements DriverConnection
     }
 
     /**
+     * setFetchMode
+     *
+     * @param integer $fetchMode
+     */
+    public function setFetchMode($fetchMode)
+    {
+        $this->_defaultFetchMode = $fetchMode;
+    }
+
+    /**
      * Prepares and executes an SQL query and returns the first row of the result
      * as an associative array.
      *
@@ -528,16 +540,6 @@ class Connection implements DriverConnection
     }
 
     /**
-     * Sets the given charset on the current connection.
-     *
-     * @param string $charset The charset to set.
-     */
-    public function setCharset($charset)
-    {
-        $this->executeUpdate($this->_platform->getSetCharsetSQL($charset));
-    }
-
-    /**
      * Quote a string so it can be safely used as a table or column name, even if
      * it is a reserved name.
      *
@@ -579,7 +581,7 @@ class Connection implements DriverConnection
      */
     public function fetchAll($sql, array $params = array())
     {
-        return $this->executeQuery($sql, $params)->fetchAll(PDO::FETCH_ASSOC);
+        return $this->executeQuery($sql, $params)->fetchAll();
     }
 
     /**
@@ -592,7 +594,15 @@ class Connection implements DriverConnection
     {
         $this->connect();
 
-        return new Statement($statement, $this);
+        try {
+            $stmt = new Statement($statement, $this);
+        } catch (\Exception $ex) {
+            throw DBALException::driverExceptionDuringQuery($ex, $statement);
+        }
+
+        $stmt->setFetchMode($this->_defaultFetchMode);
+
+        return $stmt;
     }
 
     /**
@@ -621,19 +631,25 @@ class Connection implements DriverConnection
             $logger->startQuery($query, $params, $types);
         }
 
-        if ($params) {
-            list($query, $params, $types) = SQLParserUtils::expandListParameters($query, $params, $types);
+        try {
+            if ($params) {
+                list($query, $params, $types) = SQLParserUtils::expandListParameters($query, $params, $types);
 
-            $stmt = $this->_conn->prepare($query);
-            if ($types) {
-                $this->_bindTypedValues($stmt, $params, $types);
-                $stmt->execute();
+                $stmt = $this->_conn->prepare($query);
+                if ($types) {
+                    $this->_bindTypedValues($stmt, $params, $types);
+                    $stmt->execute();
+                } else {
+                    $stmt->execute($params);
+                }
             } else {
-                $stmt->execute($params);
+                $stmt = $this->_conn->query($query);
             }
-        } else {
-            $stmt = $this->_conn->query($query);
+        } catch (\Exception $ex) {
+            throw DBALException::driverExceptionDuringQuery($ex, $query, $this->resolveParams($params, $types));
         }
+
+        $stmt->setFetchMode($this->_defaultFetchMode);
 
         if ($logger) {
             $logger->stopQuery();
@@ -664,12 +680,19 @@ class Connection implements DriverConnection
         if ($data = $resultCache->fetch($cacheKey)) {
             // is the real key part of this row pointers map or is the cache only pointing to other cache keys?
             if (isset($data[$realKey])) {
-                return new ArrayStatement($data[$realKey]);
+                $stmt = new ArrayStatement($data[$realKey]);
             } else if (array_key_exists($realKey, $data)) {
-                return new ArrayStatement(array());
+                $stmt = new ArrayStatement(array());
             }
         }
-        return new ResultCacheStatement($this->executeQuery($query, $params, $types), $resultCache, $cacheKey, $realKey, $qcp->getLifetime());
+
+        if (!isset($stmt)) {
+            $stmt = new ResultCacheStatement($this->executeQuery($query, $params, $types), $resultCache, $cacheKey, $realKey, $qcp->getLifetime());
+        }
+
+        $stmt->setFetchMode($this->_defaultFetchMode);
+
+        return $stmt;
     }
 
     /**
@@ -715,7 +738,13 @@ class Connection implements DriverConnection
             $logger->startQuery($args[0]);
         }
 
-        $statement = call_user_func_array(array($this->_conn, 'query'), $args);
+        try {
+            $statement = call_user_func_array(array($this->_conn, 'query'), $args);
+        } catch (\Exception $ex) {
+            throw DBALException::driverExceptionDuringQuery($ex, func_get_arg(0));
+        }
+
+        $statement->setFetchMode($this->_defaultFetchMode);
 
         if ($logger) {
             $logger->stopQuery();
@@ -745,19 +774,23 @@ class Connection implements DriverConnection
             $logger->startQuery($query, $params, $types);
         }
 
-        if ($params) {
-            list($query, $params, $types) = SQLParserUtils::expandListParameters($query, $params, $types);
+        try {
+            if ($params) {
+                list($query, $params, $types) = SQLParserUtils::expandListParameters($query, $params, $types);
 
-            $stmt = $this->_conn->prepare($query);
-            if ($types) {
-                $this->_bindTypedValues($stmt, $params, $types);
-                $stmt->execute();
+                $stmt = $this->_conn->prepare($query);
+                if ($types) {
+                    $this->_bindTypedValues($stmt, $params, $types);
+                    $stmt->execute();
+                } else {
+                    $stmt->execute($params);
+                }
+                $result = $stmt->rowCount();
             } else {
-                $stmt->execute($params);
+                $result = $this->_conn->exec($query);
             }
-            $result = $stmt->rowCount();
-        } else {
-            $result = $this->_conn->exec($query);
+        } catch (\Exception $ex) {
+            throw DBALException::driverExceptionDuringQuery($ex, $query, $this->resolveParams($params, $types));
         }
 
         if ($logger) {
@@ -782,7 +815,11 @@ class Connection implements DriverConnection
             $logger->startQuery($statement);
         }
 
-        $result = $this->_conn->exec($statement);
+        try {
+            $result = $this->_conn->exec($statement);
+        } catch (\Exception $ex) {
+            throw DBALException::driverExceptionDuringQuery($ex, $statement);
+        }
 
         if ($logger) {
             $logger->stopQuery();
@@ -983,7 +1020,7 @@ class Connection implements DriverConnection
      *
      * @throws ConnectionException If the rollback operation failed.
      */
-    public function rollback()
+    public function rollBack()
     {
         if ($this->_transactionNestingLevel == 0) {
             throw ConnectionException::noActiveTransaction();
@@ -1210,6 +1247,53 @@ class Connection implements DriverConnection
             $bindingType = $type; // PDO::PARAM_* constants
         }
         return array($value, $bindingType);
+    }
+
+    /**
+     * Resolves the parameters to a format which can be displayed.
+     *
+     * @internal This is a purely internal method. If you rely on this method, you are advised to
+     *           copy/paste the code as this method may change, or be removed without prior notice.
+     *
+     * @param array $params
+     * @param array $types
+     *
+     * @return array
+     */
+    public function resolveParams(array $params, array $types)
+    {
+        $resolvedParams = array();
+
+        // Check whether parameters are positional or named. Mixing is not allowed, just like in PDO.
+        if (is_int(key($params))) {
+            // Positional parameters
+            $typeOffset = array_key_exists(0, $types) ? -1 : 0;
+            $bindIndex = 1;
+            foreach ($params as $value) {
+                $typeIndex = $bindIndex + $typeOffset;
+                if (isset($types[$typeIndex])) {
+                    $type = $types[$typeIndex];
+                    list($value,) = $this->getBindingInfo($value, $type);
+                    $resolvedParams[$bindIndex] = $value;
+                } else {
+                    $resolvedParams[$bindIndex] = $value;
+                }
+                ++$bindIndex;
+            }
+        } else {
+            // Named parameters
+            foreach ($params as $name => $value) {
+                if (isset($types[$name])) {
+                    $type = $types[$name];
+                    list($value,) = $this->getBindingInfo($value, $type);
+                    $resolvedParams[$name] = $value;
+                } else {
+                    $resolvedParams[$name] = $value;
+                }
+            }
+        }
+
+        return $resolvedParams;
     }
 
     /**

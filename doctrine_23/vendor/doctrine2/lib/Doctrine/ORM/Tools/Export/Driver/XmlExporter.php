@@ -1,8 +1,5 @@
 <?php
-
 /*
- *  $Id$
- *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -16,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -27,10 +24,9 @@ use Doctrine\ORM\Mapping\ClassMetadataInfo;
 /**
  * ClassMetadata exporter for Doctrine XML mapping files
  *
- * @license http://www.opensource.org/licenses/lgpl-license.php LGPL
+ * 
  * @link    www.doctrine-project.org
  * @since   2.0
- * @version $Revision$
  * @author  Jonathan Wage <jonwage@gmail.com>
  */
 class XmlExporter extends AbstractExporter
@@ -80,10 +76,12 @@ class XmlExporter extends AbstractExporter
         }
 
         if ($metadata->discriminatorColumn) {
-            $discriminatorColumnXml = $root->addChild('discriminiator-column');
+            $discriminatorColumnXml = $root->addChild('discriminator-column');
             $discriminatorColumnXml->addAttribute('name', $metadata->discriminatorColumn['name']);
             $discriminatorColumnXml->addAttribute('type', $metadata->discriminatorColumn['type']);
-            $discriminatorColumnXml->addAttribute('length', $metadata->discriminatorColumn['length']);
+            if (isset($metadata->discriminatorColumn['length'])) {
+                $discriminatorColumnXml->addAttribute('length', $metadata->discriminatorColumn['length']);
+            }
         }
 
         if ($metadata->discriminatorMap) {
@@ -113,9 +111,9 @@ class XmlExporter extends AbstractExporter
         if (isset($metadata->table['uniqueConstraints'])) {
             $uniqueConstraintsXml = $root->addChild('unique-constraints');
 
-            foreach ($metadata->table['uniqueConstraints'] as $unique) {
+            foreach ($metadata->table['uniqueConstraints'] as $name => $unique) {
                 $uniqueConstraintXml = $uniqueConstraintsXml->addChild('unique-constraint');
-                $uniqueConstraintXml->addAttribute('name', $unique['name']);
+                $uniqueConstraintXml->addAttribute('name', $name);
                 $uniqueConstraintXml->addAttribute('columns', implode(',', $unique['columns']));
             }
         }
@@ -130,7 +128,7 @@ class XmlExporter extends AbstractExporter
             }
         }
 
-        if ($idGeneratorType = $this->_getIdGeneratorTypeString($metadata->generatorType)) {
+        if ( ! $metadata->isIdentifierComposite && $idGeneratorType = $this->_getIdGeneratorTypeString($metadata->generatorType)) {
             $id[$metadata->getSingleIdentifierFieldName()]['generator']['strategy'] = $idGeneratorType;
         }
 
@@ -183,6 +181,9 @@ class XmlExporter extends AbstractExporter
                 }
                 if (isset($field['columnDefinition'])) {
                     $fieldXml->addAttribute('column-definition', $field['columnDefinition']);
+                }
+                if (isset($field['nullable'])) {
+                    $fieldXml->addAttribute('nullable', $field['nullable'] ? 'true' : 'false');
                 }
             }
         }

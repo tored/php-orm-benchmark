@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -69,12 +69,12 @@ with names that are identifiers in this dialect or in other SQL dialects.
 By default SQLite, MySQL, PostgreSQL, MsSQL and Oracle
 keywords are checked:
 
-    <info>doctrine dbal:reserved-words</info>
+    <info>%command.full_name%</info>
 
 If you want to check against specific dialects you can
 pass them to the command:
 
-    <info>doctrine dbal:reserved-words mysql pgsql</info>
+    <info>%command.full_name% mysql pgsql</info>
 
 The following keyword lists are currently shipped with Doctrine:
 
@@ -93,7 +93,7 @@ EOT
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        /* @var $conn Doctrine\DBAL\Connection */
+        /* @var $conn \Doctrine\DBAL\Connection */
         $conn = $this->getHelper('db')->getConnection();
 
         $keywordLists = (array)$input->getOption('list');

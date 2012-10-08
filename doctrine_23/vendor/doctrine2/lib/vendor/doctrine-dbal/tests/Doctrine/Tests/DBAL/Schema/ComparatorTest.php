@@ -13,7 +13,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This software consists of voluntary contributions made by many individuals
- * and is licensed under the LGPL. For more information, see
+ * and is licensed under the MIT license. For more information, see
  * <http://www.doctrine-project.org>.
  */
 
@@ -758,6 +758,58 @@ class ComparatorTest extends \PHPUnit_Framework_TestCase
 
         $this->assertEquals(new SchemaDiff(), $c->compare($oldSchema, $newSchema));
     }
+
+    /**
+     * @group DDC-1657
+     */
+    public function testAutoIncremenetSequences()
+    {
+        $oldSchema = new Schema();
+        $table = $oldSchema->createTable("foo");
+        $table->addColumn("id", "integer", array("autoincrement" => true));
+        $table->setPrimaryKey(array("id"));
+        $oldSchema->createSequence("foo_id_seq");
+
+        $newSchema = new Schema();
+        $table = $newSchema->createTable("foo");
+        $table->addColumn("id", "integer", array("autoincrement" => true));
+        $table->setPrimaryKey(array("id"));
+
+        $c = new Comparator();
+        $diff = $c->compare($oldSchema, $newSchema);
+
+        $this->assertCount(0, $diff->removedSequences);
+    }
+
+
+    /**
+     * You can get multiple drops for a FK when a table referenced by a foreign
+     * key is deleted, as this FK is referenced twice, once on the orphanedForeignKeys
+     * array because of the dropped table, and once on changedTables array. We
+     * now check that the key is present once.
+     */
+    public function testAvoidMultipleDropForeignKey()
+    {
+        $oldSchema = new Schema();
+
+        $tableForeign = $oldSchema->createTable('foreign');
+        $tableForeign->addColumn('id', 'integer');
+
+        $table = $oldSchema->createTable('foo');
+        $table->addColumn('fk', 'integer');
+        $table->addForeignKeyConstraint($tableForeign, array('fk'), array('id'));
+
+
+        $newSchema = new Schema();
+        $table = $newSchema->createTable('foo');
+
+        $c = new Comparator();
+        $diff = $c->compare($oldSchema, $newSchema);
+
+        $this->assertCount(0, $diff->changedTables['foo']->removedForeignKeys);
+        $this->assertCount(1, $diff->orphanedForeignKeys);
+    }
+
 
     /**
      * @param SchemaDiff $diff
