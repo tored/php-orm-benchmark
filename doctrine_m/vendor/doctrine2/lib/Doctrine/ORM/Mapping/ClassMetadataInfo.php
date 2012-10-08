@@ -1188,7 +1188,7 @@ class ClassMetadataInfo implements ClassMetadata
 
         // Complete fieldName and columnName mapping
         if ( ! isset($mapping['columnName'])) {
-            $mapping['columnName'] = $this->namingStrategy->propertyToColumnName($mapping['fieldName']);
+            $mapping['columnName'] = $this->namingStrategy->propertyToColumnName($mapping['fieldName'], $this->name);
         }
 
         if ($mapping['columnName'][0] === '`') {
@@ -1465,6 +1465,7 @@ class ClassMetadataInfo implements ClassMetadata
             if ( ! isset($mapping['joinTable']['name'])) {
                 $mapping['joinTable']['name'] = $this->namingStrategy->joinTableName($mapping['sourceEntity'], $mapping['targetEntity'], $mapping['fieldName']);
             }
+
             if ( ! isset($mapping['joinTable']['joinColumns'])) {
                 $mapping['joinTable']['joinColumns'] = array(array(
                         'name' => $this->namingStrategy->joinKeyColumnName($mapping['sourceEntity']),
@@ -2724,7 +2725,7 @@ class ClassMetadataInfo implements ClassMetadata
             // Association defined as Id field
             $joinColumns            = $this->associationMappings[$idProperty]['joinColumns'];
             $assocQuotedColumnNames = array_map(
-                function ($joinColumn) {
+                function ($joinColumn) use ($platform) {
                     return isset($joinColumn['quoted'])
                         ? $platform->quoteIdentifier($joinColumn['name'])
                         : $joinColumn['name'];

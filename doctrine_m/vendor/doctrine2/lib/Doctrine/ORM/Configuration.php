@@ -513,6 +513,20 @@ class Configuration extends \Doctrine\DBAL\Configuration
     }
 
     /**
+     * Set the custom hydrator modes in one pass.
+     *
+     * @param array An array of ($modeName => $hydrator)
+     */
+    public function setCustomHydrationModes($modes)
+    {
+        $this->_attributes['customHydrationModes'] = array();
+
+        foreach ($modes as $modeName => $hydrator) {
+            $this->addCustomHydrationMode($modeName, $hydrator);
+        }
+    }
+
+    /**
      * Get the hydrator class for the given hydration mode name.
      *
      * @param string $modeName The hydration mode name.
@@ -645,7 +659,7 @@ class Configuration extends \Doctrine\DBAL\Configuration
      * Set quote strategy.
      *
      * @since 2.3
-     * @param Doctrine\ORM\Mapping\QuoteStrategy $quoteStrategy
+     * @param \Doctrine\ORM\Mapping\QuoteStrategy $quoteStrategy
      */
     public function setQuoteStrategy(QuoteStrategy $quoteStrategy)
     {
@@ -656,7 +670,7 @@ class Configuration extends \Doctrine\DBAL\Configuration
      * Get quote strategy.
      *
      * @since 2.3
-     * @return Doctrine\ORM\Mapping\QuoteStrategy
+     * @return \Doctrine\ORM\Mapping\QuoteStrategy
      */
     public function getQuoteStrategy()
     {

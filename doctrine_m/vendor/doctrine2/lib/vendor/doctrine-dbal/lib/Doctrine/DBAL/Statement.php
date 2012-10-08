@@ -129,6 +129,10 @@ class Statement implements \IteratorAggregate, DriverStatement
      */
     public function execute($params = null)
     {
+        if (is_array($params)) {
+            $this->params = $params;
+        }
+        
         $logger = $this->conn->getConfiguration()->getSQLLogger();
         if ($logger) {
             $logger->startQuery($this->sql, $this->params, $this->types);
@@ -190,6 +194,12 @@ class Statement implements \IteratorAggregate, DriverStatement
 
     public function setFetchMode($fetchMode, $arg2 = null, $arg3 = null)
     {
+        if ($arg2 === null) {
+            return $this->stmt->setFetchMode($fetchMode);
+        } else if ($arg3 === null) {
+            return $this->stmt->setFetchMode($fetchMode, $arg2);
+        }
+
         return $this->stmt->setFetchMode($fetchMode, $arg2, $arg3);
     }
 
