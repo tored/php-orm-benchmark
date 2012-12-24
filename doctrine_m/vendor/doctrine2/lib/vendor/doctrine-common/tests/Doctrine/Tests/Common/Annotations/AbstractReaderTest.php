@@ -350,6 +350,45 @@ abstract class AbstractReaderTest extends \PHPUnit_Framework_TestCase
         $this->assertCount(0, $reader->getPropertyAnnotations($class->getProperty('foo')));
     }
 
+    public function testAnnotationEnumeratorException()
+    {
+        $reader     = $this->getReader();
+        $class      = new \ReflectionClass('Doctrine\Tests\Common\Annotations\Fixtures\ClassWithAnnotationEnum');
+
+        $this->assertCount(1, $bar = $reader->getMethodAnnotations($class->getMethod('bar')));
+        $this->assertCount(1, $foo = $reader->getPropertyAnnotations($class->getProperty('foo')));
+
+        $this->assertInstanceOf('Doctrine\Tests\Common\Annotations\Fixtures\AnnotationEnum', $bar[0]);
+        $this->assertInstanceOf('Doctrine\Tests\Common\Annotations\Fixtures\AnnotationEnum', $foo[0]);
+
+        try {
+            $reader->getPropertyAnnotations($class->getProperty('invalidProperty'));
+            $this->fail();
+        } catch (\Doctrine\Common\Annotations\AnnotationException $exc) {
+            $this->assertEquals('[Enum Error] Attribute "value" of @Doctrine\Tests\Common\Annotations\Fixtures\AnnotationEnum declared on property Doctrine\Tests\Common\Annotations\Fixtures\ClassWithAnnotationEnum::$invalidProperty accept only [ONE, TWO, THREE], but got FOUR.', $exc->getMessage());
+        }
+
+        try {
+            $reader->getMethodAnnotations($class->getMethod('invalidMethod'));
+            $this->fail();
+        } catch (\Doctrine\Common\Annotations\AnnotationException $exc) {
+            $this->assertEquals('[Enum Error] Attribute "value" of @Doctrine\Tests\Common\Annotations\Fixtures\AnnotationEnum declared on method Doctrine\Tests\Common\Annotations\Fixtures\ClassWithAnnotationEnum::invalidMethod() accept only [ONE, TWO, THREE], but got 5.', $exc->getMessage());
+        }
+    }
+
+    /**
+     * @group DCOM-106
+     */
+    public function testIgnoreFixMeAndUpperCaseToDo()
+    {
+        $reader = $this->getReader();
+        $ref = new \ReflectionClass('Doctrine\Tests\Common\Annotations\DCOM106');
+        $reader->getClassAnnotations($ref);
+    }
+    
+    /**
+     * @return AnnotationReader
+     */
     abstract protected function getReader();
 }
 
@@ -516,6 +555,16 @@ class DummyClassWithEmail
 
 }
 
+
+/**
+ * @fixme public
+ * @TODO
+ */
+class DCOM106
+{
+    
+}
+
 namespace Doctrine\Tests\Common\Annotations\Foo;
 
 /** @Annotation */
@@ -531,4 +580,3 @@ class Name extends \Doctrine\Common\Annotations\Annotation
 {
     public $name;
 }
-

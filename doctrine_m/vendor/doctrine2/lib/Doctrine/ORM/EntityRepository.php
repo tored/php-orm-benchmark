@@ -19,6 +19,8 @@
 
 namespace Doctrine\ORM;
 
+use Doctrine\ORM\Query\ResultSetMappingBuilder;
+
 use Doctrine\DBAL\LockMode;
 use Doctrine\Common\Persistence\ObjectRepository;
 
@@ -59,8 +61,8 @@ class EntityRepository implements ObjectRepository, Selectable
     /**
      * Initializes a new <tt>EntityRepository</tt>.
      *
-     * @param EntityManager $em The EntityManager to use.
-     * @param Mapping\ClassMetadata $classMetadata The class descriptor.
+     * @param EntityManager         $em    The EntityManager to use.
+     * @param Mapping\ClassMetadata $class The class descriptor.
      */
     public function __construct($em, Mapping\ClassMetadata $class)
     {
@@ -70,10 +72,11 @@ class EntityRepository implements ObjectRepository, Selectable
     }
 
     /**
-     * Create a new QueryBuilder instance that is prepopulated for this entity name
+     * Creates a new QueryBuilder instance that is prepopulated for this entity name.
      *
      * @param string $alias
-     * @return QueryBuilder $qb
+     *
+     * @return QueryBuilder
      */
     public function createQueryBuilder($alias)
     {
@@ -83,9 +86,27 @@ class EntityRepository implements ObjectRepository, Selectable
     }
 
     /**
-     * Create a new Query instance based on a predefined metadata named query.
+     * Creates a new result set mapping builder for this entity.
+     *
+     * The column naming strategy is "INCREMENT".
+     *
+     * @param string $alias
+     *
+     * @return ResultSetMappingBuilder
+     */
+    public function createResultSetMappingBuilder($alias)
+    {
+        $rsm = new ResultSetMappingBuilder($this->_em, ResultSetMappingBuilder::COLUMN_RENAMING_INCREMENT);
+        $rsm->addRootEntityFromClassMetadata($this->_entityName, $alias);
+
+        return $rsm;
+    }
+
+    /**
+     * Creates a new Query instance based on a predefined metadata named query.
      *
      * @param string $queryName
+     *
      * @return Query
      */
     public function createNamedQuery($queryName)
@@ -97,6 +118,7 @@ class EntityRepository implements ObjectRepository, Selectable
      * Creates a native SQL query.
      *
      * @param string $queryName
+     *
      * @return NativeQuery
      */
     public function createNativeNamedQuery($queryName)
@@ -110,6 +132,8 @@ class EntityRepository implements ObjectRepository, Selectable
 
     /**
      * Clears the repository, causing all managed entities to become detached.
+     *
+     * @return void
      */
     public function clear()
     {
@@ -119,9 +143,9 @@ class EntityRepository implements ObjectRepository, Selectable
     /**
      * Finds an entity by its primary key / identifier.
      *
-     * @param mixed $id The identifier.
-     * @param integer $lockMode
-     * @param integer $lockVersion
+     * @param mixed    $id          The identifier.
+     * @param int      $lockMode    The lock mode.
+     * @param int|null $lockVersion The lock version.
      *
      * @return object The entity.
      */
@@ -143,10 +167,11 @@ class EntityRepository implements ObjectRepository, Selectable
     /**
      * Finds entities by a set of criteria.
      *
-     * @param array $criteria
+     * @param array      $criteria
      * @param array|null $orderBy
-     * @param int|null $limit
-     * @param int|null $offset
+     * @param int|null   $limit
+     * @param int|null   $offset
+     *
      * @return array The objects.
      */
     public function findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
@@ -160,20 +185,27 @@ class EntityRepository implements ObjectRepository, Selectable
      * Finds a single entity by a set of criteria.
      *
      * @param array $criteria
+     * @param array|null $orderBy
+     *
      * @return object
      */
-    public function findOneBy(array $criteria)
+    public function findOneBy(array $criteria, array $orderBy = null)
     {
         $persister = $this->_em->getUnitOfWork()->getEntityPersister($this->_entityName);
 
-        return $persister->load($criteria, null, null, array(), 0, 1);
+        return $persister->load($criteria, null, null, array(), 0, 1, $orderBy);
     }
 
     /**
      * Adds support for magic finders.
      *
+     * @param string $method
+     * @param array  $arguments
+     *
      * @return array|object The found entity/entities.
-     * @throws BadMethodCallException  If the method called is an invalid find* method
+     *
+     * @throws ORMException
+     * @throws \BadMethodCallException If the method called is an invalid find* method
      *                                 or no find* method at all and therefore an invalid
      *                                 method call.
      */
@@ -214,7 +246,7 @@ class EntityRepository implements ObjectRepository, Selectable
                 case 3:
                     return $this->$method(array($fieldName => $arguments[0]), $arguments[1], $arguments[2]);
 
-                case 4;
+                case 4:
                     return $this->$method(array($fieldName => $arguments[0]), $arguments[1], $arguments[2], $arguments[3]);
 
                 default:
@@ -272,4 +304,3 @@ class EntityRepository implements ObjectRepository, Selectable
         return new ArrayCollection($persister->loadCriteria($criteria));
     }
 }
-

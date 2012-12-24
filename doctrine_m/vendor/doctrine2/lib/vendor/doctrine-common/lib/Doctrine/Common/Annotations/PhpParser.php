@@ -46,12 +46,12 @@ final class PhpParser
         }
 
         $content = $this->getFileContent($filename, $class->getStartLine());
-        
+
         if (null === $content) {
             return array();
         }
 
-        $namespace = str_replace('\\', '\\\\', $class->getNamespaceName());
+        $namespace = preg_quote($class->getNamespaceName());
         $content = preg_replace('/^.*?(\bnamespace\s+' . $namespace . '\s*[;{].*)$/s', '\\1', $content);
         $tokenizer = new TokenParser('<?php ' . $content);
 
@@ -69,7 +69,7 @@ final class PhpParser
      */
     private function getFileContent($filename, $lineNumber)
     {
-        if ( ! file_exists($filename)) {
+        if ( ! is_file($filename)) {
             return null;
         }
 
