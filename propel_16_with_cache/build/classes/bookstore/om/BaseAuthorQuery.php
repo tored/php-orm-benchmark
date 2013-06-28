@@ -6,46 +6,44 @@
  *
  * Author Table
  *
- * @method     AuthorQuery orderById($order = Criteria::ASC) Order by the id column
- * @method     AuthorQuery orderByFirstName($order = Criteria::ASC) Order by the first_name column
- * @method     AuthorQuery orderByLastName($order = Criteria::ASC) Order by the last_name column
- * @method     AuthorQuery orderByEmail($order = Criteria::ASC) Order by the email column
+ * @method AuthorQuery orderById($order = Criteria::ASC) Order by the id column
+ * @method AuthorQuery orderByFirstName($order = Criteria::ASC) Order by the first_name column
+ * @method AuthorQuery orderByLastName($order = Criteria::ASC) Order by the last_name column
+ * @method AuthorQuery orderByEmail($order = Criteria::ASC) Order by the email column
  *
- * @method     AuthorQuery groupById() Group by the id column
- * @method     AuthorQuery groupByFirstName() Group by the first_name column
- * @method     AuthorQuery groupByLastName() Group by the last_name column
- * @method     AuthorQuery groupByEmail() Group by the email column
+ * @method AuthorQuery groupById() Group by the id column
+ * @method AuthorQuery groupByFirstName() Group by the first_name column
+ * @method AuthorQuery groupByLastName() Group by the last_name column
+ * @method AuthorQuery groupByEmail() Group by the email column
  *
- * @method     AuthorQuery leftJoin($relation) Adds a LEFT JOIN clause to the query
- * @method     AuthorQuery rightJoin($relation) Adds a RIGHT JOIN clause to the query
- * @method     AuthorQuery innerJoin($relation) Adds a INNER JOIN clause to the query
+ * @method AuthorQuery leftJoin($relation) Adds a LEFT JOIN clause to the query
+ * @method AuthorQuery rightJoin($relation) Adds a RIGHT JOIN clause to the query
+ * @method AuthorQuery innerJoin($relation) Adds a INNER JOIN clause to the query
  *
- * @method     AuthorQuery leftJoinBook($relationAlias = null) Adds a LEFT JOIN clause to the query using the Book relation
- * @method     AuthorQuery rightJoinBook($relationAlias = null) Adds a RIGHT JOIN clause to the query using the Book relation
- * @method     AuthorQuery innerJoinBook($relationAlias = null) Adds a INNER JOIN clause to the query using the Book relation
+ * @method AuthorQuery leftJoinBook($relationAlias = null) Adds a LEFT JOIN clause to the query using the Book relation
+ * @method AuthorQuery rightJoinBook($relationAlias = null) Adds a RIGHT JOIN clause to the query using the Book relation
+ * @method AuthorQuery innerJoinBook($relationAlias = null) Adds a INNER JOIN clause to the query using the Book relation
  *
- * @method     Author findOne(PropelPDO $con = null) Return the first Author matching the query
- * @method     Author findOneOrCreate(PropelPDO $con = null) Return the first Author matching the query, or a new Author object populated from the query conditions when no match is found
+ * @method Author findOne(PropelPDO $con = null) Return the first Author matching the query
+ * @method Author findOneOrCreate(PropelPDO $con = null) Return the first Author matching the query, or a new Author object populated from the query conditions when no match is found
  *
- * @method     Author findOneById(int $id) Return the first Author filtered by the id column
- * @method     Author findOneByFirstName(string $first_name) Return the first Author filtered by the first_name column
- * @method     Author findOneByLastName(string $last_name) Return the first Author filtered by the last_name column
- * @method     Author findOneByEmail(string $email) Return the first Author filtered by the email column
+ * @method Author findOneByFirstName(string $first_name) Return the first Author filtered by the first_name column
+ * @method Author findOneByLastName(string $last_name) Return the first Author filtered by the last_name column
+ * @method Author findOneByEmail(string $email) Return the first Author filtered by the email column
  *
- * @method     array findById(int $id) Return Author objects filtered by the id column
- * @method     array findByFirstName(string $first_name) Return Author objects filtered by the first_name column
- * @method     array findByLastName(string $last_name) Return Author objects filtered by the last_name column
- * @method     array findByEmail(string $email) Return Author objects filtered by the email column
+ * @method array findById(int $id) Return Author objects filtered by the id column
+ * @method array findByFirstName(string $first_name) Return Author objects filtered by the first_name column
+ * @method array findByLastName(string $last_name) Return Author objects filtered by the last_name column
+ * @method array findByEmail(string $email) Return Author objects filtered by the email column
  *
  * @package    propel.generator.bookstore.om
  */
 abstract class BaseAuthorQuery extends ModelCriteria
 {
-    
-	// query_cache behavior
-	protected $queryKey = '';
-	protected static $cacheBackend;
-				
+    // query_cache behavior
+    protected $queryKey = '';
+    protected static $cacheBackend;
+
     /**
      * Initializes internal state of BaseAuthorQuery object.
      *
@@ -62,9 +60,9 @@ abstract class BaseAuthorQuery extends ModelCriteria
      * Returns a new AuthorQuery object.
      *
      * @param     string $modelAlias The alias of a model in the query
-     * @param     Criteria $criteria Optional Criteria to build the query from
+     * @param   AuthorQuery|Criteria $criteria Optional Criteria to build the query from
      *
-     * @return    AuthorQuery
+     * @return AuthorQuery
      */
     public static function create($modelAlias = null, $criteria = null)
     {
@@ -78,33 +76,109 @@ abstract class BaseAuthorQuery extends ModelCriteria
         if ($criteria instanceof Criteria) {
             $query->mergeWith($criteria);
         }
+
         return $query;
     }
 
     /**
-     * Find object by primary key
-     * Use instance pooling to avoid a database query if the object exists
+     * Find object by primary key.
+     * Propel uses the instance pool to skip the database if the object exists.
+     * Go fast if the query is untouched.
+     *
      * <code>
      * $obj  = $c->findPk(12, $con);
      * </code>
-     * @param     mixed $key Primary key to use for the query
+     *
+     * @param mixed $key Primary key to use for the query
      * @param     PropelPDO $con an optional connection object
      *
-     * @return    Author|array|mixed the result, formatted by the current formatter
+     * @return   Author|Author[]|mixed the result, formatted by the current formatter
      */
     public function findPk($key, $con = null)
     {
-        if ((null !== ($obj = AuthorPeer::getInstanceFromPool((string) $key))) && $this->getFormatter()->isObjectFormatter()) {
+        if ($key === null) {
+            return null;
+        }
+        if ((null !== ($obj = AuthorPeer::getInstanceFromPool((string) $key))) && !$this->formatter) {
             // the object is alredy in the instance pool
             return $obj;
-        } else {
-            // the object has not been requested yet, or the formatter is not an object formatter
-            $criteria = $this->isKeepQuery() ? clone $this : $this;
-            $stmt = $criteria
-                ->filterByPrimaryKey($key)
-                ->getSelectStatement($con);
-            return $criteria->getFormatter()->init($criteria)->formatOne($stmt);
         }
+        if ($con === null) {
+            $con = Propel::getConnection(AuthorPeer::DATABASE_NAME, Propel::CONNECTION_READ);
+        }
+        $this->basePreSelect($con);
+        if ($this->formatter || $this->modelAlias || $this->with || $this->select
+         || $this->selectColumns || $this->asColumns || $this->selectModifiers
+         || $this->map || $this->having || $this->joins) {
+            return $this->findPkComplex($key, $con);
+        } else {
+            return $this->findPkSimple($key, $con);
+        }
+    }
+
+    /**
+     * Alias of findPk to use instance pooling
+     *
+     * @param     mixed $key Primary key to use for the query
+     * @param     PropelPDO $con A connection object
+     *
+     * @return                 Author A model object, or null if the key is not found
+     * @throws PropelException
+     */
+     public function findOneById($key, $con = null)
+     {
+        return $this->findPk($key, $con);
+     }
+
+    /**
+     * Find object by primary key using raw SQL to go fast.
+     * Bypass doSelect() and the object formatter by using generated code.
+     *
+     * @param     mixed $key Primary key to use for the query
+     * @param     PropelPDO $con A connection object
+     *
+     * @return                 Author A model object, or null if the key is not found
+     * @throws PropelException
+     */
+    protected function findPkSimple($key, $con)
+    {
+        $sql = 'SELECT [id], [first_name], [last_name], [email] FROM [author] WHERE [id] = :p0';
+        try {
+            $stmt = $con->prepare($sql);
+            $stmt->bindValue(':p0', $key, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (Exception $e) {
+            Propel::log($e->getMessage(), Propel::LOG_ERR);
+            throw new PropelException(sprintf('Unable to execute SELECT statement [%s]', $sql), $e);
+        }
+        $obj = null;
+        if ($row = $stmt->fetch(PDO::FETCH_NUM)) {
+            $obj = new Author();
+            $obj->hydrate($row);
+            AuthorPeer::addInstanceToPool($obj, (string) $key);
+        }
+        $stmt->closeCursor();
+
+        return $obj;
+    }
+
+    /**
+     * Find object by primary key.
+     *
+     * @param     mixed $key Primary key to use for the query
+     * @param     PropelPDO $con A connection object
+     *
+     * @return Author|Author[]|mixed the result, formatted by the current formatter
+     */
+    protected function findPkComplex($key, $con)
+    {
+        // As the query uses a PK condition, no limit(1) is necessary.
+        $criteria = $this->isKeepQuery() ? clone $this : $this;
+        $stmt = $criteria
+            ->filterByPrimaryKey($key)
+            ->doSelect($con);
+
+        return $criteria->getFormatter()->init($criteria)->formatOne($stmt);
     }
 
     /**
@@ -115,14 +189,20 @@ abstract class BaseAuthorQuery extends ModelCriteria
      * @param     array $keys Primary keys to use for the query
      * @param     PropelPDO $con an optional connection object
      *
-     * @return    PropelObjectCollection|array|mixed the list of results, formatted by the current formatter
+     * @return PropelObjectCollection|Author[]|mixed the list of results, formatted by the current formatter
      */
     public function findPks($keys, $con = null)
     {
+        if ($con === null) {
+            $con = Propel::getConnection($this->getDbName(), Propel::CONNECTION_READ);
+        }
+        $this->basePreSelect($con);
         $criteria = $this->isKeepQuery() ? clone $this : $this;
-        return $this
+        $stmt = $criteria
             ->filterByPrimaryKeys($keys)
-            ->find($con);
+            ->doSelect($con);
+
+        return $criteria->getFormatter()->init($criteria)->format($stmt);
     }
 
     /**
@@ -130,10 +210,11 @@ abstract class BaseAuthorQuery extends ModelCriteria
      *
      * @param     mixed $key Primary key to use for the query
      *
-     * @return    AuthorQuery The current query, for fluid interface
+     * @return AuthorQuery The current query, for fluid interface
      */
     public function filterByPrimaryKey($key)
     {
+
         return $this->addUsingAlias(AuthorPeer::ID, $key, Criteria::EQUAL);
     }
 
@@ -142,10 +223,11 @@ abstract class BaseAuthorQuery extends ModelCriteria
      *
      * @param     array $keys The list of primary key to use for the query
      *
-     * @return    AuthorQuery The current query, for fluid interface
+     * @return AuthorQuery The current query, for fluid interface
      */
     public function filterByPrimaryKeys($keys)
     {
+
         return $this->addUsingAlias(AuthorPeer::ID, $keys, Criteria::IN);
     }
 
@@ -156,7 +238,8 @@ abstract class BaseAuthorQuery extends ModelCriteria
      * <code>
      * $query->filterById(1234); // WHERE id = 1234
      * $query->filterById(array(12, 34)); // WHERE id IN (12, 34)
-     * $query->filterById(array('min' => 12)); // WHERE id > 12
+     * $query->filterById(array('min' => 12)); // WHERE id >= 12
+     * $query->filterById(array('max' => 12)); // WHERE id <= 12
      * </code>
      *
      * @param     mixed $id The value to use as filter.
@@ -165,13 +248,28 @@ abstract class BaseAuthorQuery extends ModelCriteria
      *              Use associative array('min' => $minValue, 'max' => $maxValue) for intervals.
      * @param     string $comparison Operator to use for the column comparison, defaults to Criteria::EQUAL
      *
-     * @return    AuthorQuery The current query, for fluid interface
+     * @return AuthorQuery The current query, for fluid interface
      */
     public function filterById($id = null, $comparison = null)
     {
-        if (is_array($id) && null === $comparison) {
-            $comparison = Criteria::IN;
+        if (is_array($id)) {
+            $useMinMax = false;
+            if (isset($id['min'])) {
+                $this->addUsingAlias(AuthorPeer::ID, $id['min'], Criteria::GREATER_EQUAL);
+                $useMinMax = true;
+            }
+            if (isset($id['max'])) {
+                $this->addUsingAlias(AuthorPeer::ID, $id['max'], Criteria::LESS_EQUAL);
+                $useMinMax = true;
+            }
+            if ($useMinMax) {
+                return $this;
+            }
+            if (null === $comparison) {
+                $comparison = Criteria::IN;
+            }
         }
+
         return $this->addUsingAlias(AuthorPeer::ID, $id, $comparison);
     }
 
@@ -188,7 +286,7 @@ abstract class BaseAuthorQuery extends ModelCriteria
      *              Accepts wildcards (* and % trigger a LIKE)
      * @param     string $comparison Operator to use for the column comparison, defaults to Criteria::EQUAL
      *
-     * @return    AuthorQuery The current query, for fluid interface
+     * @return AuthorQuery The current query, for fluid interface
      */
     public function filterByFirstName($firstName = null, $comparison = null)
     {
@@ -200,6 +298,7 @@ abstract class BaseAuthorQuery extends ModelCriteria
                 $comparison = Criteria::LIKE;
             }
         }
+
         return $this->addUsingAlias(AuthorPeer::FIRST_NAME, $firstName, $comparison);
     }
 
@@ -216,7 +315,7 @@ abstract class BaseAuthorQuery extends ModelCriteria
      *              Accepts wildcards (* and % trigger a LIKE)
      * @param     string $comparison Operator to use for the column comparison, defaults to Criteria::EQUAL
      *
-     * @return    AuthorQuery The current query, for fluid interface
+     * @return AuthorQuery The current query, for fluid interface
      */
     public function filterByLastName($lastName = null, $comparison = null)
     {
@@ -228,6 +327,7 @@ abstract class BaseAuthorQuery extends ModelCriteria
                 $comparison = Criteria::LIKE;
             }
         }
+
         return $this->addUsingAlias(AuthorPeer::LAST_NAME, $lastName, $comparison);
     }
 
@@ -244,7 +344,7 @@ abstract class BaseAuthorQuery extends ModelCriteria
      *              Accepts wildcards (* and % trigger a LIKE)
      * @param     string $comparison Operator to use for the column comparison, defaults to Criteria::EQUAL
      *
-     * @return    AuthorQuery The current query, for fluid interface
+     * @return AuthorQuery The current query, for fluid interface
      */
     public function filterByEmail($email = null, $comparison = null)
     {
@@ -256,23 +356,25 @@ abstract class BaseAuthorQuery extends ModelCriteria
                 $comparison = Criteria::LIKE;
             }
         }
+
         return $this->addUsingAlias(AuthorPeer::EMAIL, $email, $comparison);
     }
 
     /**
      * Filter the query by a related Book object
      *
-     * @param     Book $book  the related object to use as filter
+     * @param   Book|PropelObjectCollection $book  the related object to use as filter
      * @param     string $comparison Operator to use for the column comparison, defaults to Criteria::EQUAL
      *
-     * @return    AuthorQuery The current query, for fluid interface
+     * @return                 AuthorQuery The current query, for fluid interface
+     * @throws PropelException - if the provided filter is invalid.
      */
     public function filterByBook($book, $comparison = null)
     {
         if ($book instanceof Book) {
             return $this
                 ->addUsingAlias(AuthorPeer::ID, $book->getAuthorId(), $comparison);
-        } elseif ($book instanceof PropelCollection) {
+        } elseif ($book instanceof PropelObjectCollection) {
             return $this
                 ->useBookQuery()
                 ->filterByPrimaryKeys($book->getPrimaryKeys())
@@ -288,7 +390,7 @@ abstract class BaseAuthorQuery extends ModelCriteria
      * @param     string $relationAlias optional alias for the relation
      * @param     string $joinType Accepted values are null, 'left join', 'right join', 'inner join'
      *
-     * @return    AuthorQuery The current query, for fluid interface
+     * @return AuthorQuery The current query, for fluid interface
      */
     public function joinBook($relationAlias = null, $joinType = Criteria::LEFT_JOIN)
     {
@@ -304,7 +406,7 @@ abstract class BaseAuthorQuery extends ModelCriteria
         }
 
         // add the ModelJoin to the current object
-        if($relationAlias) {
+        if ($relationAlias) {
             $this->addAlias($relationAlias, $relationMap->getRightTable()->getName());
             $this->addJoinObject($join, $relationAlias);
         } else {
@@ -323,7 +425,7 @@ abstract class BaseAuthorQuery extends ModelCriteria
      *                                   to be used as main alias in the secondary query
      * @param     string $joinType Accepted values are null, 'left join', 'right join', 'inner join'
      *
-     * @return    BookQuery A secondary query class using the current class as primary query
+     * @return   BookQuery A secondary query class using the current class as primary query
      */
     public function useBookQuery($relationAlias = null, $joinType = Criteria::LEFT_JOIN)
     {
@@ -335,9 +437,9 @@ abstract class BaseAuthorQuery extends ModelCriteria
     /**
      * Exclude object from result
      *
-     * @param     Author $author Object to remove from the list of results
+     * @param   Author $author Object to remove from the list of results
      *
-     * @return    AuthorQuery The current query, for fluid interface
+     * @return AuthorQuery The current query, for fluid interface
      */
     public function prune($author = null)
     {
@@ -348,127 +450,126 @@ abstract class BaseAuthorQuery extends ModelCriteria
         return $this;
     }
 
-	// query_cache behavior
-	
-	public function setQueryKey($key)
-	{
-		$this->queryKey = $key;
-		return $this;
-	}
-	
-	public function getQueryKey()
-	{
-		return $this->queryKey;
-	}
-	
-	public function cacheContains($key)
-	{
-		return isset(self::$cacheBackend[$key]);
-	}
-	
-	public function cacheFetch($key)
-	{
-		return isset(self::$cacheBackend[$key]) ? self::$cacheBackend[$key] : null;
-	}
-	
-	public function cacheStore($key, $value, $lifetime = 3600)
-	{
-		self::$cacheBackend[$key] = $value;
-	}
-	
-	protected function getSelectStatement($con = null)
-	{
-		$dbMap = Propel::getDatabaseMap(AuthorPeer::DATABASE_NAME);
-		$db = Propel::getDB(AuthorPeer::DATABASE_NAME);
-	  if ($con === null) {
-			$con = Propel::getConnection(AuthorPeer::DATABASE_NAME, Propel::CONNECTION_READ);
-		}
-	
-		if (!$this->hasSelectClause() && !$this->getPrimaryCriteria()) {
-			$this->addSelfSelectColumns();
-		}
-	
-		$this->configureSelectColumns();
-	
-		$con->beginTransaction();
-		try {
-			$this->basePreSelect($con);
-			$key = $this->getQueryKey();
-			if ($key && $this->cacheContains($key)) {
-				$params = $this->getParams();
-				$sql = $this->cacheFetch($key);
-			} else {
-				$params = array();
-				$sql = BasePeer::createSelectSql($this, $params);
-				if ($key) {
-					$this->cacheStore($key, $sql);
-				}
-			}
-			$stmt = $con->prepare($sql);
-			$db->bindValues($stmt, $params, $dbMap);
-			$stmt->execute();
-			$con->commit();
-		} catch (PropelException $e) {
-			$con->rollback();
-			throw $e;
-		}
-	
-		return $stmt;
-	}
-	
-	protected function getCountStatement($con = null)
-	{
-		$dbMap = Propel::getDatabaseMap($this->getDbName());
-		$db = Propel::getDB($this->getDbName());
-	  if ($con === null) {
-			$con = Propel::getConnection($this->getDbName(), Propel::CONNECTION_READ);
-		}
-	
-		$con->beginTransaction();
-		try {
-			$this->basePreSelect($con);
-			$key = $this->getQueryKey();
-			if ($key && $this->cacheContains($key)) {
-				$params = $this->getParams();
-				$sql = $this->cacheFetch($key);
-			} else {
-				if (!$this->hasSelectClause() && !$this->getPrimaryCriteria()) {
-					$this->addSelfSelectColumns();
-				}
-				$params = array();
-				$needsComplexCount = $this->getGroupByColumns()
-					|| $this->getOffset()
-					|| $this->getLimit()
-					|| $this->getHaving()
-					|| in_array(Criteria::DISTINCT, $this->getSelectModifiers());
-				if ($needsComplexCount) {
-					if (BasePeer::needsSelectAliases($this)) {
-						if ($this->getHaving()) {
-							throw new PropelException('Propel cannot create a COUNT query when using HAVING and  duplicate column names in the SELECT part');
-						}
-						$db->turnSelectColumnsToAliases($this);
-					}
-					$selectSql = BasePeer::createSelectSql($this, $params);
-					$sql = 'SELECT COUNT(*) FROM (' . $selectSql . ') propelmatch4cnt';
-				} else {
-					// Replace SELECT columns with COUNT(*)
-					$this->clearSelectColumns()->addSelectColumn('COUNT(*)');
-					$sql = BasePeer::createSelectSql($this, $params);
-				}
-				if ($key) {
-					$this->cacheStore($key, $sql);
-				}
-			}
-			$stmt = $con->prepare($sql);
-			$db->bindValues($stmt, $params, $dbMap);
-			$stmt->execute();
-			$con->commit();
-		} catch (PropelException $e) {
-			$con->rollback();
-			throw $e;
-		}
-	
-		return $stmt;
-	}
+    // query_cache behavior
 
-} // BaseAuthorQuery
+    public function setQueryKey($key)
+    {
+        $this->queryKey = $key;
+
+        return $this;
+    }
+
+    public function getQueryKey()
+    {
+        return $this->queryKey;
+    }
+
+    public function cacheContains($key)
+    {
+
+        return isset(self::$cacheBackend[$key]);
+    }
+
+    public function cacheFetch($key)
+    {
+
+        return isset(self::$cacheBackend[$key]) ? self::$cacheBackend[$key] : null;
+    }
+
+    public function cacheStore($key, $value, $lifetime = 3600)
+    {
+        self::$cacheBackend[$key] = $value;
+    }
+
+    protected function doSelect($con)
+    {
+        // check that the columns of the main class are already added (if this is the primary ModelCriteria)
+        if (!$this->hasSelectClause() && !$this->getPrimaryCriteria()) {
+            $this->addSelfSelectColumns();
+        }
+        $this->configureSelectColumns();
+
+        $dbMap = Propel::getDatabaseMap(AuthorPeer::DATABASE_NAME);
+        $db = Propel::getDB(AuthorPeer::DATABASE_NAME);
+
+        $key = $this->getQueryKey();
+        if ($key && $this->cacheContains($key)) {
+            $params = $this->getParams();
+            $sql = $this->cacheFetch($key);
+        } else {
+            $params = array();
+            $sql = BasePeer::createSelectSql($this, $params);
+            if ($key) {
+                $this->cacheStore($key, $sql);
+            }
+        }
+
+        try {
+            $stmt = $con->prepare($sql);
+            $db->bindValues($stmt, $params, $dbMap);
+            $stmt->execute();
+            } catch (Exception $e) {
+                Propel::log($e->getMessage(), Propel::LOG_ERR);
+                throw new PropelException(sprintf('Unable to execute SELECT statement [%s]', $sql), $e);
+            }
+
+        return $stmt;
+    }
+
+    protected function doCount($con)
+    {
+        $dbMap = Propel::getDatabaseMap($this->getDbName());
+        $db = Propel::getDB($this->getDbName());
+
+        $key = $this->getQueryKey();
+        if ($key && $this->cacheContains($key)) {
+            $params = $this->getParams();
+            $sql = $this->cacheFetch($key);
+        } else {
+            // check that the columns of the main class are already added (if this is the primary ModelCriteria)
+            if (!$this->hasSelectClause() && !$this->getPrimaryCriteria()) {
+                $this->addSelfSelectColumns();
+            }
+
+            $this->configureSelectColumns();
+
+            $needsComplexCount = $this->getGroupByColumns()
+                || $this->getOffset()
+                || $this->getLimit()
+                || $this->getHaving()
+                || in_array(Criteria::DISTINCT, $this->getSelectModifiers());
+
+            $params = array();
+            if ($needsComplexCount) {
+                if (BasePeer::needsSelectAliases($this)) {
+                    if ($this->getHaving()) {
+                        throw new PropelException('Propel cannot create a COUNT query when using HAVING and  duplicate column names in the SELECT part');
+                    }
+                    $db->turnSelectColumnsToAliases($this);
+                }
+                $selectSql = BasePeer::createSelectSql($this, $params);
+                $sql = 'SELECT COUNT(*) FROM (' . $selectSql . ') propelmatch4cnt';
+            } else {
+                // Replace SELECT columns with COUNT(*)
+                $this->clearSelectColumns()->addSelectColumn('COUNT(*)');
+                $sql = BasePeer::createSelectSql($this, $params);
+            }
+
+            if ($key) {
+                $this->cacheStore($key, $sql);
+            }
+        }
+
+        try {
+            $stmt = $con->prepare($sql);
+            $db->bindValues($stmt, $params, $dbMap);
+            $stmt->execute();
+        } catch (Exception $e) {
+            Propel::log($e->getMessage(), Propel::LOG_ERR);
+            throw new PropelException(sprintf('Unable to execute COUNT statement [%s]', $sql), $e);
+        }
+
+        return $stmt;
+    }
+
+}

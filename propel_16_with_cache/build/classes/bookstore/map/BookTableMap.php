@@ -17,55 +17,58 @@
 class BookTableMap extends TableMap
 {
 
-	/**
-	 * The (dot-path) name of this class
-	 */
-	const CLASS_NAME = 'bookstore.map.BookTableMap';
+    /**
+     * The (dot-path) name of this class
+     */
+    const CLASS_NAME = 'bookstore.map.BookTableMap';
 
-	/**
-	 * Initialize the table attributes, columns and validators
-	 * Relations are not initialized by this method since they are lazy loaded
-	 *
-	 * @return     void
-	 * @throws     PropelException
-	 */
-	public function initialize()
-	{
-		// attributes
-		$this->setName('book');
-		$this->setPhpName('Book');
-		$this->setClassname('Book');
-		$this->setPackage('bookstore');
-		$this->setUseIdGenerator(true);
-		// columns
-		$this->addPrimaryKey('ID', 'Id', 'INTEGER', true, null, null);
-		$this->addColumn('TITLE', 'Title', 'VARCHAR', true, 255, null);
-		$this->getColumn('TITLE', false)->setPrimaryString(true);
-		$this->addColumn('ISBN', 'ISBN', 'VARCHAR', true, 24, null);
-		$this->addColumn('PRICE', 'Price', 'FLOAT', false, null, null);
-		$this->addForeignKey('AUTHOR_ID', 'AuthorId', 'INTEGER', 'author', 'ID', false, null, null);
-		// validators
-	} // initialize()
+    /**
+     * Initialize the table attributes, columns and validators
+     * Relations are not initialized by this method since they are lazy loaded
+     *
+     * @return void
+     * @throws PropelException
+     */
+    public function initialize()
+    {
+        // attributes
+        $this->setName('book');
+        $this->setPhpName('Book');
+        $this->setClassname('Book');
+        $this->setPackage('bookstore');
+        $this->setUseIdGenerator(true);
+        // columns
+        $this->addPrimaryKey('id', 'Id', 'INTEGER', true, null, null);
+        $this->addColumn('title', 'Title', 'VARCHAR', true, 255, null);
+        $this->getColumn('title', false)->setPrimaryString(true);
+        $this->addColumn('isbn', 'ISBN', 'VARCHAR', true, 24, null);
+        $this->addColumn('price', 'Price', 'FLOAT', false, null, null);
+        $this->addForeignKey('author_id', 'AuthorId', 'INTEGER', 'author', 'id', false, null, null);
+        // validators
+    } // initialize()
 
-	/**
-	 * Build the RelationMap objects for this table relationships
-	 */
-	public function buildRelations()
-	{
-		$this->addRelation('Author', 'Author', RelationMap::MANY_TO_ONE, array('author_id' => 'id', ), 'SET NULL', 'CASCADE');
-	} // buildRelations()
+    /**
+     * Build the RelationMap objects for this table relationships
+     */
+    public function buildRelations()
+    {
+        $this->addRelation('Author', 'Author', RelationMap::MANY_TO_ONE, array('author_id' => 'id', ), 'SET NULL', 'CASCADE');
+    } // buildRelations()
 
-	/**
-	 *
-	 * Gets the list of behaviors registered for this table
-	 *
-	 * @return array Associative array (name => parameters) of behaviors
-	 */
-	public function getBehaviors()
-	{
-		return array(
-			'query_cache' => array('backend' => 'array', 'lifetime' => '3600', ),
-		);
-	} // getBehaviors()
+    /**
+     *
+     * Gets the list of behaviors registered for this table
+     *
+     * @return array Associative array (name => parameters) of behaviors
+     */
+    public function getBehaviors()
+    {
+        return array(
+            'query_cache' =>  array (
+  'backend' => 'array',
+  'lifetime' => 3600,
+),
+        );
+    } // getBehaviors()
 
 } // BookTableMap
