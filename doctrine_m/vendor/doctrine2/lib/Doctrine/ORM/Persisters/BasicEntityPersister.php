@@ -37,7 +37,7 @@ use Doctrine\Common\Collections\Criteria;
 use Doctrine\Common\Collections\Expr\Comparison;
 
 /**
- * A BasicEntityPersiter maps an entity to a single table in a relational database.
+ * A BasicEntityPersister maps an entity to a single table in a relational database.
  *
  * A persister is always responsible for a single entity type.
  *
@@ -84,15 +84,16 @@ class BasicEntityPersister
      * @var array
      */
     static private $comparisonMap = array(
-        Comparison::EQ  => '= %s',
-        Comparison::IS  => 'IS %s',
-        Comparison::NEQ => '!= %s',
-        Comparison::GT  => '> %s',
-        Comparison::GTE => '>= %s',
-        Comparison::LT  => '< %s',
-        Comparison::LTE => '<= %s',
-        Comparison::IN  => 'IN (%s)',
-        Comparison::NIN => 'NOT IN (%s)',
+        Comparison::EQ       => '= %s',
+        Comparison::IS       => '= %s',
+        Comparison::NEQ      => '!= %s',
+        Comparison::GT       => '> %s',
+        Comparison::GTE      => '>= %s',
+        Comparison::LT       => '< %s',
+        Comparison::LTE      => '<= %s',
+        Comparison::IN       => 'IN (%s)',
+        Comparison::NIN      => 'NOT IN (%s)',
+        Comparison::CONTAINS => 'LIKE %s',
     );
 
     /**
@@ -177,8 +178,8 @@ class BasicEntityPersister
     protected $selectColumnListSql;
 
     /**
-     * The JOIN SQL fragement used to eagerly load all many-to-one and one-to-one
-     * associations configured as FETCH_EAGER, aswell as all inverse one-to-one associations.
+     * The JOIN SQL fragment used to eagerly load all many-to-one and one-to-one
+     * associations configured as FETCH_EAGER, as well as all inverse one-to-one associations.
      *
      * @var string
      */
@@ -254,7 +255,7 @@ class BasicEntityPersister
     public function executeInserts()
     {
         if ( ! $this->queuedInserts) {
-            return;
+            return array();
         }
 
         $postInsertIds  = array();
@@ -499,7 +500,7 @@ class BasicEntityPersister
             }
 
             // @Todo this only covers scenarios with no inheritance or of the same level. Is there something
-            // like self-referential relationship between different levels of an inheritance hierachy? I hope not!
+            // like self-referential relationship between different levels of an inheritance hierarchy? I hope not!
             $selfReferential = ($mapping['targetEntity'] == $mapping['sourceEntity']);
             $class           = $this->class;
             $association     = $mapping;
@@ -559,13 +560,35 @@ class BasicEntityPersister
      */
     public function delete($entity)
     {
+        $class      = $this->class;
+        $em         = $this->em;
+
         $identifier = $this->em->getUnitOfWork()->getEntityIdentifier($entity);
-        $tableName  = $this->quoteStrategy->getTableName($this->class, $this->platform);
-        $idColumns  = $this->quoteStrategy->getIdentifierColumnNames($this->class, $this->platform);
+        $tableName  = $this->quoteStrategy->getTableName($class, $this->platform);
+        $idColumns  = $this->quoteStrategy->getIdentifierColumnNames($class, $this->platform);
         $id         = array_combine($idColumns, $identifier);
 
+        $types = array_map(function ($identifier) use ($class, $em) {
+            if (isset($class->fieldMappings[$identifier])) {
+                return $class->fieldMappings[$identifier]['type'];
+            }
+
+            $targetMapping = $em->getClassMetadata($class->associationMappings[$identifier]['targetEntity']);
+
+            if (isset($targetMapping->fieldMappings[$targetMapping->identifier[0]])) {
+                return $targetMapping->fieldMappings[$targetMapping->identifier[0]]['type'];
+            }
+
+            if (isset($targetMapping->associationMappings[$targetMapping->identifier[0]])) {
+                $types[] = $targetMapping->associationMappings[$targetMapping->identifier[0]]['type'];
+            }
+
+            throw ORMException::unrecognizedField($targetMapping->identifier[0]);
+
+        }, $class->identifier);
+
         $this->deleteJoinTableRecords($identifier);
-        $this->conn->delete($tableName, $id);
+        $this->conn->delete($tableName, $id, $types);
     }
 
     /**
@@ -714,7 +737,7 @@ class BasicEntityPersister
      * @param int|null    $limit    Limit number of results.
      * @param array|null  $orderBy  Criteria to order by.
      *
-     * @return object The loaded and managed entity instance or NULL if the entity can not be found.
+     * @return object|null The loaded and managed entity instance or NULL if the entity can not be found.
      *
      * @todo Check identity map? loadById method? Try to guess whether $criteria is the id?
      */
@@ -851,7 +874,7 @@ class BasicEntityPersister
         $stmt       = $this->conn->executeQuery($query, $params, $types);
         $hydrator   = $this->em->newHydrator(($this->selectJoinSql) ? Query::HYDRATE_OBJECT : Query::HYDRATE_SIMPLEOBJECT);
 
-        return $hydrator->hydrateAll($stmt, $this->rsm, array('deferEagerLoads' => true));
+        return $hydrator->hydrateAll($stmt, $this->rsm, array(UnitOfWork::HINT_DEFEREAGERLOAD => true));
     }
 
     /**
@@ -908,7 +931,7 @@ class BasicEntityPersister
 
         $hydrator = $this->em->newHydrator(($this->selectJoinSql) ? Query::HYDRATE_OBJECT : Query::HYDRATE_SIMPLEOBJECT);
 
-        return $hydrator->hydrateAll($stmt, $this->rsm, array('deferEagerLoads' => true));
+        return $hydrator->hydrateAll($stmt, $this->rsm, array(UnitOfWork::HINT_DEFEREAGERLOAD => true));
     }
 
     /**
@@ -939,7 +962,7 @@ class BasicEntityPersister
     private function loadArrayFromStatement($assoc, $stmt)
     {
         $rsm    = $this->rsm;
-        $hints  = array('deferEagerLoads' => true);
+        $hints  = array(UnitOfWork::HINT_DEFEREAGERLOAD => true);
 
         if (isset($assoc['indexBy'])) {
             $rsm = clone ($this->rsm); // this is necessary because the "default rsm" should be changed.
@@ -962,8 +985,8 @@ class BasicEntityPersister
     {
         $rsm   = $this->rsm;
         $hints = array(
-            'deferEagerLoads'   => true,
-            'collection'        => $coll
+            UnitOfWork::HINT_DEFEREAGERLOAD => true,
+            'collection' => $coll
         );
 
         if (isset($assoc['indexBy'])) {
@@ -1138,29 +1161,49 @@ class BasicEntityPersister
      */
     protected final function getOrderBySQL(array $orderBy, $baseTableAlias)
     {
-        $orderBySql = '';
+        $orderByList = array();
 
         foreach ($orderBy as $fieldName => $orientation) {
-            if ( ! isset($this->class->fieldMappings[$fieldName])) {
-                throw ORMException::unrecognizedField($fieldName);
-            }
 
             $orientation = strtoupper(trim($orientation));
+
             if ($orientation != 'ASC' && $orientation != 'DESC') {
                 throw ORMException::invalidOrientation($this->class->name, $fieldName);
             }
 
-            $tableAlias = isset($this->class->fieldMappings[$fieldName]['inherited'])
-                ? $this->getSQLTableAlias($this->class->fieldMappings[$fieldName]['inherited'])
-                : $baseTableAlias;
+            if (isset($this->class->fieldMappings[$fieldName])) {
+                $tableAlias = isset($this->class->fieldMappings[$fieldName]['inherited'])
+                    ? $this->getSQLTableAlias($this->class->fieldMappings[$fieldName]['inherited'])
+                    : $baseTableAlias;
 
-            $columnName = $this->quoteStrategy->getColumnName($fieldName, $this->class, $this->platform);
+                $columnName    = $this->quoteStrategy->getColumnName($fieldName, $this->class, $this->platform);
+                $orderByList[] = $tableAlias . '.' . $columnName . ' ' . $orientation;
 
-            $orderBySql .= $orderBySql ? ', ' : ' ORDER BY ';
-            $orderBySql .= $tableAlias . '.' . $columnName . ' ' . $orientation;
+                continue;
+            }
+
+            if (isset($this->class->associationMappings[$fieldName])) {
+
+                if ( ! $this->class->associationMappings[$fieldName]['isOwningSide']) {
+                    throw ORMException::invalidFindByInverseAssociation($this->class->name, $fieldName);
+                }
+
+                $tableAlias = isset($this->class->associationMappings[$fieldName]['inherited'])
+                    ? $this->getSQLTableAlias($this->class->associationMappings[$fieldName]['inherited'])
+                    : $baseTableAlias;
+
+                foreach ($this->class->associationMappings[$fieldName]['joinColumns'] as $joinColumn) {
+                    $columnName    = $this->quoteStrategy->getJoinColumnName($joinColumn, $this->class, $this->platform);
+                    $orderByList[] = $tableAlias . '.' . $columnName . ' ' . $orientation;
+                }
+
+                continue;
+            }
+
+            throw ORMException::unrecognizedField($fieldName);
         }
 
-        return $orderBySql;
+        return ' ORDER BY ' . implode(', ', $orderByList);
     }
 
     /**
@@ -1291,16 +1334,22 @@ class BasicEntityPersister
             return '';
         }
 
-        $columnList = array();
+        $columnList  = array();
+        $targetClass = $this->em->getClassMetadata($assoc['targetEntity']);
 
         foreach ($assoc['joinColumns'] as $joinColumn) {
-
+            $type             = null;
+            $isIdentifier     = isset($assoc['id']) && $assoc['id'] === true;
             $quotedColumn     = $this->quoteStrategy->getJoinColumnName($joinColumn, $this->class, $this->platform);
             $resultColumnName = $this->getSQLColumnAlias($joinColumn['name']);
             $columnList[]     = $this->getSQLTableAlias($class->name, ($alias == 'r' ? '' : $alias) )
                                 . '.' . $quotedColumn . ' AS ' . $resultColumnName;
 
-            $this->rsm->addMetaResult($alias, $resultColumnName, $quotedColumn, isset($assoc['id']) && $assoc['id'] === true);
+            if (isset($targetClass->fieldNames[$joinColumn['referencedColumnName']])) {
+                $type  = $targetClass->fieldMappings[$targetClass->fieldNames[$joinColumn['referencedColumnName']]]['type'];
+            }
+
+            $this->rsm->addMetaResult($alias, $resultColumnName, $quotedColumn, $isIdentifier, $type);
         }
 
         return implode(', ', $columnList);
@@ -1540,7 +1589,7 @@ class BasicEntityPersister
             return '';
         }
 
-        $visitor = new SqlExpressionVisitor($this);
+        $visitor = new SqlExpressionVisitor($this, $this->class);
 
         return $visitor->dispatch($expression);
     }
@@ -1565,6 +1614,14 @@ class BasicEntityPersister
         }
 
         if ($comparison !== null) {
+
+            // special case null value handling
+            if (($comparison === Comparison::EQ || $comparison === Comparison::IS) && $value === null) {
+                return $condition . ' IS NULL';
+            } else if ($comparison === Comparison::NEQ && $value === null) {
+                return $condition . ' IS NOT NULL';
+            }
+
             return $condition . ' ' . sprintf(self::$comparisonMap[$comparison], $placeholder);
         }
 
@@ -1827,16 +1884,7 @@ class BasicEntityPersister
             return $value;
         }
 
-        if ($this->em->getUnitOfWork()->getEntityState($value) === UnitOfWork::STATE_MANAGED) {
-            $idValues = $this->em->getUnitOfWork()->getEntityIdentifier($value);
-
-            return reset($idValues);
-        }
-
-        $class      = $this->em->getClassMetadata(get_class($value));
-        $idValues   = $class->getIdentifierValues($value);
-
-        return reset($idValues);
+        return $this->em->getUnitOfWork()->getSingleIdentifierValue($value);
     }
 
     /**

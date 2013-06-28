@@ -280,15 +280,26 @@ class SqlitePlatformTest extends AbstractPlatformTestCase
     protected function getQuotedColumnInPrimaryKeySQL()
     {
         return array(
-            'CREATE TABLE "quoted" ("key" VARCHAR(255) NOT NULL, PRIMARY KEY("key"))',
+            'CREATE TABLE "quoted" ("create" VARCHAR(255) NOT NULL, PRIMARY KEY("create"))',
         );
     }
 
     protected function getQuotedColumnInIndexSQL()
     {
         return array(
-            'CREATE TABLE "quoted" ("key" VARCHAR(255) NOT NULL)',
-            'CREATE INDEX IDX_22660D028A90ABA9 ON "quoted" ("key")',
+            'CREATE TABLE "quoted" ("create" VARCHAR(255) NOT NULL)',
+            'CREATE INDEX IDX_22660D028FD6E0FB ON "quoted" ("create")',
+        );
+    }
+
+    protected function getQuotedColumnInForeignKeySQL()
+    {
+        return array(
+            'CREATE TABLE "quoted" (' .
+            '"create" VARCHAR(255) NOT NULL, foo VARCHAR(255) NOT NULL, "bar" VARCHAR(255) NOT NULL, ' .
+            'CONSTRAINT FK_WITH_RESERVED_KEYWORD FOREIGN KEY ("create", foo, "bar") REFERENCES "foreign" ("create", bar, "foo-bar") NOT DEFERRABLE INITIALLY IMMEDIATE, ' .
+            'CONSTRAINT FK_WITH_NON_RESERVED_KEYWORD FOREIGN KEY ("create", foo, "bar") REFERENCES foo ("create", bar, "foo-bar") NOT DEFERRABLE INITIALLY IMMEDIATE, ' .
+            'CONSTRAINT FK_WITH_INTENDED_QUOTATION FOREIGN KEY ("create", foo, "bar") REFERENCES "foo-bar" ("create", bar, "foo-bar") NOT DEFERRABLE INITIALLY IMMEDIATE)',
         );
     }
 }

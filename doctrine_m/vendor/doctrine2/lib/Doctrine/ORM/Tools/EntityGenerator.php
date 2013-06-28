@@ -475,7 +475,7 @@ public function __construct()
     public function setFieldVisibility($visibility)
     {
         if ($visibility !== self::FIELD_VISIBLE_PRIVATE && $visibility !== self::FIELD_VISIBLE_PROTECTED) {
-            throw new \InvalidArgumentException('Invalid provided visibilty (only private and protected are allowed): ' . $visibility);
+            throw new \InvalidArgumentException('Invalid provided visibility (only private and protected are allowed): ' . $visibility);
         }
 
         $this->fieldVisibility = $visibility;
@@ -1092,8 +1092,8 @@ public function __construct()
     protected function generateEntityStubMethod(ClassMetadataInfo $metadata, $type, $fieldName, $typeHint = null,  $defaultValue = null)
     {
         $methodName = $type . Inflector::classify($fieldName);
-        if (in_array($type, array("add", "remove")) && substr($methodName, -1) == "s") {
-            $methodName = substr($methodName, 0, -1);
+        if (in_array($type, array("add", "remove"))) {
+            $methodName = Inflector::singularize($methodName);
         }
 
         if ($this->hasMethod($methodName, $metadata)) {
@@ -1272,6 +1272,15 @@ public function __construct()
 
             if (isset($associationMapping['orphanRemoval']) && $associationMapping['orphanRemoval']) {
                 $typeOptions[] = 'orphanRemoval=' . ($associationMapping['orphanRemoval'] ? 'true' : 'false');
+            }
+
+            if (isset($associationMapping['fetch']) && $associationMapping['fetch'] !== ClassMetadataInfo::FETCH_LAZY) {
+                $fetchMap = array(
+                    ClassMetadataInfo::FETCH_EXTRA_LAZY => 'EXTRA_LAZY',
+                    ClassMetadataInfo::FETCH_EAGER      => 'EAGER',
+                );
+
+                $typeOptions[] = 'fetch="' . $fetchMap[$associationMapping['fetch']] . '"';
             }
 
             $lines[] = $this->spaces . ' * @' . $this->annotationsPrefix . '' . $type . '(' . implode(', ', $typeOptions) . ')';
@@ -1480,7 +1489,7 @@ public function __construct()
     /**
      * @param integer $type The generator to use for the mapped class.
      *
-     * @return string The literal string for the generetor type.
+     * @return string The literal string for the generator type.
      *
      * @throws \InvalidArgumentException    When the generator type does not exists.
      */

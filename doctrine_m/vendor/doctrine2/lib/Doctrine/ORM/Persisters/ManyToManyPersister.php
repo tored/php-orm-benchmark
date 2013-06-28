@@ -38,6 +38,24 @@ class ManyToManyPersister extends AbstractCollectionPersister
      *
      * @override
      */
+    public function get(PersistentCollection $coll, $index)
+    {
+        $mapping   = $coll->getMapping();
+        $uow       = $this->em->getUnitOfWork();
+        $persister = $uow->getEntityPersister($mapping['targetEntity']);
+
+        if (!isset($mapping['indexBy'])) {
+            throw new \BadMethodCallException("Selecting a collection by index is only supported on indexed collections.");
+        }
+
+        return $persister->load(array($mapping['indexBy'] => $index), null, null, array(), 0, 1);
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @override
+     */
     protected function getDeleteRowSQL(PersistentCollection $coll)
     {
         $columns    = array();
@@ -190,22 +208,22 @@ class ManyToManyPersister extends AbstractCollectionPersister
      */
     protected function getDeleteSQLParameters(PersistentCollection $coll)
     {
-        $identifier = $this->uow->getEntityIdentifier($coll->getOwner());
         $mapping    = $coll->getMapping();
-        $params     = array();
+        $identifier = $this->uow->getEntityIdentifier($coll->getOwner());
 
         // Optimization for single column identifier
         if (count($mapping['relationToSourceKeyColumns']) === 1) {
-            $params[] = array_pop($identifier);
-
-            return $params;
+            return array(reset($identifier));
         }
 
         // Composite identifier
-        $sourceClass = $this->em->getClassMetadata(get_class($coll->getOwner()));
+        $sourceClass = $this->em->getClassMetadata($mapping['sourceEntity']);
+        $params      = array();
 
-        foreach ($mapping['relationToSourceKeyColumns'] as $srcColumn) {
-            $params[] = $identifier[$sourceClass->fieldNames[$srcColumn]];
+        foreach ($mapping['relationToSourceKeyColumns'] as $columnName => $refColumnName) {
+            $params[] = isset($sourceClass->fieldNames[$refColumnName])
+                ? $identifier[$sourceClass->fieldNames[$refColumnName]]
+                : $identifier[$sourceClass->getFieldForColumn($columnName)];
         }
 
         return $params;

@@ -106,8 +106,8 @@ class PostgreSqlPlatformTest extends AbstractPlatformTestCase
         $this->assertEquals('SIMILAR TO', $this->_platform->getRegexpExpression(), 'Regular expression operator is not correct');
         $this->assertEquals('"', $this->_platform->getIdentifierQuoteCharacter(), 'Identifier quote character is not correct');
         $this->assertEquals('column1 || column2 || column3', $this->_platform->getConcatExpression('column1', 'column2', 'column3'), 'Concatenation expression is not correct');
-        $this->assertEquals('SUBSTR(column, 5)', $this->_platform->getSubstringExpression('column', 5), 'Substring expression without length is not correct');
-        $this->assertEquals('SUBSTR(column, 0, 5)', $this->_platform->getSubstringExpression('column', 0, 5), 'Substring expression with length is not correct');
+        $this->assertEquals('SUBSTRING(column FROM 5)', $this->_platform->getSubstringExpression('column', 5), 'Substring expression without length is not correct');
+        $this->assertEquals('SUBSTRING(column FROM 1 FOR 5)', $this->_platform->getSubstringExpression('column', 1, 5), 'Substring expression with length is not correct');
     }
 
     public function testGeneratesTransactionCommands()
@@ -195,7 +195,7 @@ class PostgreSqlPlatformTest extends AbstractPlatformTestCase
             $this->_platform->getCreateSequenceSQL($sequence)
         );
         $this->assertEquals(
-            'DROP SEQUENCE myseq',
+            'DROP SEQUENCE myseq CASCADE',
             $this->_platform->getDropSequenceSQL('myseq')
         );
         $this->assertEquals(
@@ -254,6 +254,7 @@ class PostgreSqlPlatformTest extends AbstractPlatformTestCase
         return array(
             "ALTER TABLE mytable ADD quota INT NOT NULL",
             "COMMENT ON COLUMN mytable.quota IS 'A comment'",
+            "COMMENT ON COLUMN mytable.foo IS NULL",
             "COMMENT ON COLUMN mytable.baz IS 'B comment'",
         );
     }
@@ -269,15 +270,49 @@ class PostgreSqlPlatformTest extends AbstractPlatformTestCase
     protected function getQuotedColumnInPrimaryKeySQL()
     {
         return array(
-            'CREATE TABLE "quoted" ("key" VARCHAR(255) NOT NULL, PRIMARY KEY("key"))',
+            'CREATE TABLE "quoted" ("create" VARCHAR(255) NOT NULL, PRIMARY KEY("create"))',
         );
     }
 
     protected function getQuotedColumnInIndexSQL()
     {
         return array(
-            'CREATE TABLE "quoted" ("key" VARCHAR(255) NOT NULL)',
-            'CREATE INDEX IDX_22660D028A90ABA9 ON "quoted" ("key")',
+            'CREATE TABLE "quoted" ("create" VARCHAR(255) NOT NULL)',
+            'CREATE INDEX IDX_22660D028FD6E0FB ON "quoted" ("create")',
         );
     }
+
+    protected function getQuotedColumnInForeignKeySQL()
+    {
+        return array(
+            'CREATE TABLE "quoted" ("create" VARCHAR(255) NOT NULL, foo VARCHAR(255) NOT NULL, "bar" VARCHAR(255) NOT NULL)',
+            'ALTER TABLE "quoted" ADD CONSTRAINT FK_WITH_RESERVED_KEYWORD FOREIGN KEY ("create", foo, "bar") REFERENCES "foreign" ("create", bar, "foo-bar") NOT DEFERRABLE INITIALLY IMMEDIATE',
+            'ALTER TABLE "quoted" ADD CONSTRAINT FK_WITH_NON_RESERVED_KEYWORD FOREIGN KEY ("create", foo, "bar") REFERENCES foo ("create", bar, "foo-bar") NOT DEFERRABLE INITIALLY IMMEDIATE',
+            'ALTER TABLE "quoted" ADD CONSTRAINT FK_WITH_INTENDED_QUOTATION FOREIGN KEY ("create", foo, "bar") REFERENCES "foo-bar" ("create", bar, "foo-bar") NOT DEFERRABLE INITIALLY IMMEDIATE',
+        );
+    }
+
+    /**
+     * @group DBAL-457
+     */
+    public function testConvertBooleanAsStrings()
+    {
+        $platform = $this->createPlatform();
+
+        $this->assertEquals('true', $platform->convertBooleans(true));
+        $this->assertEquals('false', $platform->convertBooleans(false));
+    }
+
+    /**
+     * @group DBAL-457
+     */
+    public function testConvertBooleanAsIntegers()
+    {
+        $platform = $this->createPlatform();
+        $platform->setUseBooleanTrueFalseStrings(false);
+
+        $this->assertEquals('1', $platform->convertBooleans(true));
+        $this->assertEquals('0', $platform->convertBooleans(false));
+    }
 }
+

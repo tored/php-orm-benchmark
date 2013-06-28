@@ -9,3 +9,6 @@ lib/Doctrine/DBAL
 /.settings/
 .buildpath
 .project
+.idea
+vendor/
+composer.lock

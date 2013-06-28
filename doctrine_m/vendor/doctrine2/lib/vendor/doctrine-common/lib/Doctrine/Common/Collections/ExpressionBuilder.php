@@ -27,11 +27,13 @@ use Doctrine\Common\Collections\Expr\Value;
  * Builder for Expressions in the {@link Selectable} interface.
  *
  * @author Benjamin Eberlei <kontakt@beberlei.de>
- * @since 2.3
+ * @since  2.3
  */
 class ExpressionBuilder
 {
     /**
+     * @param mixed $x
+     *
      * @return CompositeExpression
      */
     public function andX($x = null)
@@ -40,6 +42,8 @@ class ExpressionBuilder
     }
 
     /**
+     * @param mixed $x
+     *
      * @return CompositeExpression
      */
     public function orX($x = null)
@@ -49,7 +53,7 @@ class ExpressionBuilder
 
     /**
      * @param string $field
-     * @param mixed $value
+     * @param mixed  $value
      *
      * @return Comparison
      */
@@ -60,7 +64,7 @@ class ExpressionBuilder
 
     /**
      * @param string $field
-     * @param mixed $value
+     * @param mixed  $value
      *
      * @return Comparison
      */
@@ -71,7 +75,7 @@ class ExpressionBuilder
 
     /**
      * @param string $field
-     * @param mixed $value
+     * @param mixed  $value
      *
      * @return Comparison
      */
@@ -82,7 +86,7 @@ class ExpressionBuilder
 
     /**
      * @param string $field
-     * @param mixed $value
+     * @param mixed  $value
      *
      * @return Comparison
      */
@@ -93,7 +97,7 @@ class ExpressionBuilder
 
     /**
      * @param string $field
-     * @param mixed $value
+     * @param mixed  $value
      *
      * @return Comparison
      */
@@ -104,7 +108,7 @@ class ExpressionBuilder
 
     /**
      * @param string $field
-     * @param mixed $value
+     * @param mixed  $value
      *
      * @return Comparison
      */
@@ -120,12 +124,12 @@ class ExpressionBuilder
      */
     public function isNull($field)
     {
-        return new Comparison($field, Comparison::IS, new Value(null));
+        return new Comparison($field, Comparison::EQ, new Value(null));
     }
 
     /**
      * @param string $field
-     * @param mixed $values
+     * @param mixed  $values
      *
      * @return Comparison
      */
@@ -136,12 +140,23 @@ class ExpressionBuilder
 
     /**
      * @param string $field
-     * @param mixed $values
+     * @param mixed  $values
      *
      * @return Comparison
      */
     public function notIn($field, array $values)
     {
         return new Comparison($field, Comparison::NIN, new Value($values));
+    }
+
+    /**
+     * @param string $field
+     * @param mixed  $value
+     *
+     * @return Comparison
+     */
+    public function contains($field, $value)
+    {
+        return new Comparison($field, Comparison::CONTAINS, new Value($value));
     }
 }

@@ -535,6 +535,20 @@ class SchemaManagerFunctionalTestCase extends \Doctrine\Tests\DbalFunctionalTest
         $columns = $this->_sm->listTableColumns("column_comment_test");
         $this->assertEquals(1, count($columns));
         $this->assertEquals('This is a comment', $columns['id']->getComment());
+
+        $tableDiff = new \Doctrine\DBAL\Schema\TableDiff('column_comment_test');
+        $tableDiff->changedColumns['id'] = new \Doctrine\DBAL\Schema\ColumnDiff(
+            'id', new \Doctrine\DBAL\Schema\Column(
+                'id', \Doctrine\DBAL\Types\Type::getType('integer'), array('primary' => true)
+            ),
+            array('comment')
+        );
+
+        $this->_sm->alterTable($tableDiff);
+
+        $columns = $this->_sm->listTableColumns("column_comment_test");
+        $this->assertEquals(1, count($columns));
+        $this->assertEmpty($columns['id']->getComment());
     }
 
     /**
@@ -639,7 +653,7 @@ class SchemaManagerFunctionalTestCase extends \Doctrine\Tests\DbalFunctionalTest
         $this->_sm->createTable($this->getTestCompositeTable('test_create_fk4'));
 
         $foreignKey = new \Doctrine\DBAL\Schema\ForeignKeyConstraint(
-            array('id', 'foreign_key_test'), 'test_create_fk4', array('id', 'other_id'), 'foreign_key_test_fk'
+            array('id', 'foreign_key_test'), 'test_create_fk4', array('id', 'other_id'), 'foreign_key_test_fk2'
         );
 
         $this->_sm->createForeignKey($foreignKey, 'test_create_fk3');

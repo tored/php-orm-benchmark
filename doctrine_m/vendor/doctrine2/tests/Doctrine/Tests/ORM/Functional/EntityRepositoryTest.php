@@ -3,11 +3,11 @@
 namespace Doctrine\Tests\ORM\Functional;
 
 use Doctrine\Tests\Models\CMS\CmsUser;
+use Doctrine\Tests\Models\CMS\CmsEmail;
 use Doctrine\Tests\Models\CMS\CmsAddress;
 use Doctrine\Tests\Models\CMS\CmsPhonenumber;
 use Doctrine\Common\Collections\Criteria;
-
-require_once __DIR__ . '/../../TestInit.php';
+use Doctrine\Common\Collections\ArrayCollection;
 
 /**
  * @author robo
@@ -87,6 +87,50 @@ class EntityRepositoryTest extends \Doctrine\Tests\OrmFunctionalTestCase
         $this->_em->clear();
 
         return array($user->id, $address->id);
+    }
+
+    public function loadFixtureUserEmail()
+    {
+        $user1 = new CmsUser();
+        $user2 = new CmsUser();
+        $user3 = new CmsUser();
+
+        $email1 = new CmsEmail();
+        $email2 = new CmsEmail();
+        $email3 = new CmsEmail();
+
+        $user1->name     = 'Test 1';
+        $user1->username = 'test1';
+        $user1->status   = 'active';
+
+        $user2->name     = 'Test 2';
+        $user2->username = 'test2';
+        $user2->status   = 'active';
+
+        $user3->name     = 'Test 3';
+        $user3->username = 'test3';
+        $user3->status   = 'active';
+
+        $email1->email   = 'test1@test.com';
+        $email2->email   = 'test2@test.com';
+        $email3->email   = 'test3@test.com';
+
+        $user1->setEmail($email1);
+        $user2->setEmail($email2);
+        $user3->setEmail($email3);
+
+        $this->_em->persist($user1);
+        $this->_em->persist($user2);
+        $this->_em->persist($user3);
+
+        $this->_em->persist($email1);
+        $this->_em->persist($email2);
+        $this->_em->persist($email3);
+
+        $this->_em->flush();
+        $this->_em->clear();
+
+        return array($user1, $user2, $user3);
     }
 
     public function buildUser($name, $username, $status, $address)
@@ -477,6 +521,24 @@ class EntityRepositoryTest extends \Doctrine\Tests\OrmFunctionalTestCase
     }
 
     /**
+     * @group DDC-1376
+     */
+    public function testFindByOrderByAssociation()
+    {
+        $this->loadFixtureUserEmail();
+
+        $repository = $this->_em->getRepository('Doctrine\Tests\Models\CMS\CmsUser');
+        $resultAsc  = $repository->findBy(array(), array('email' => 'ASC'));
+        $resultDesc = $repository->findBy(array(), array('email' => 'DESC'));
+
+        $this->assertCount(3, $resultAsc);
+        $this->assertCount(3, $resultDesc);
+
+        $this->assertEquals($resultAsc[0]->getEmail()->getId(), $resultDesc[2]->getEmail()->getId());
+        $this->assertEquals($resultAsc[2]->getEmail()->getId(), $resultDesc[0]->getEmail()->getId());
+    }
+
+    /**
      * @group DDC-1426
      */
     public function testFindFieldByMagicCallOrderBy()
@@ -538,7 +600,6 @@ class EntityRepositoryTest extends \Doctrine\Tests\OrmFunctionalTestCase
 
     }
 
-
     /**
      * @group DDC-753
      * @expectedException Doctrine\ORM\ORMException
@@ -548,6 +609,18 @@ class EntityRepositoryTest extends \Doctrine\Tests\OrmFunctionalTestCase
     {
         $this->assertEquals($this->_em->getConfiguration()->getDefaultRepositoryClassName(), "Doctrine\ORM\EntityRepository");
         $this->_em->getConfiguration()->setDefaultRepositoryClassName("Doctrine\Tests\Models\DDC753\DDC753InvalidRepository");
+    }
+
+    /**
+     * @group DDC-1376
+     * 
+     * @expectedException Doctrine\ORM\ORMException
+     * @expectedExceptionMessage You cannot search for the association field 'Doctrine\Tests\Models\CMS\CmsUser#address', because it is the inverse side of an association.
+     */
+    public function testInvalidOrderByAssociation()
+    {
+        $this->_em->getRepository('Doctrine\Tests\Models\CMS\CmsUser')
+            ->findBy(array('status' => 'test'), array('address' => 'ASC'));
     }
 
     /**
@@ -564,7 +637,7 @@ class EntityRepositoryTest extends \Doctrine\Tests\OrmFunctionalTestCase
     /**
      * @group DDC-1713
      */
-    public function testFindByAssocationArray()
+    public function testFindByAssociationArray()
     {
         $repo = $this->_em->getRepository('Doctrine\Tests\Models\CMS\CmsArticle');
         $data = $repo->findBy(array('user' => array(1, 2, 3)));
@@ -705,6 +778,97 @@ class EntityRepositoryTest extends \Doctrine\Tests\OrmFunctionalTestCase
         ));
 
         $this->assertEquals(4, count($users));
+    }
+
+    /**
+     * @group DDC-2430
+     */
+    public function testMatchingCriteriaAssocationByObjectInMemory()
+    {
+        list($userId, $addressId) = $this->loadAssociatedFixture();
+
+        $user = $this->_em->find('Doctrine\Tests\Models\CMS\CmsUser', $userId);
+
+        $criteria = new Criteria(
+            Criteria::expr()->eq('user', $user)
+        );
+
+        $repository = $this->_em->getRepository('Doctrine\Tests\Models\CMS\CmsAddress');
+        $addresses = $repository->matching($criteria);
+
+        $this->assertEquals(1, count($addresses));
+
+        $addresses = new ArrayCollection($repository->findAll());
+
+        $this->assertEquals(1, count($addresses->matching($criteria)));
+    }
+
+    /**
+     * @group DDC-2430
+     */
+    public function testMatchingCriteriaAssocationInWithArray()
+    {
+        list($userId, $addressId) = $this->loadAssociatedFixture();
+
+        $user = $this->_em->find('Doctrine\Tests\Models\CMS\CmsUser', $userId);
+
+        $criteria = new Criteria(
+            Criteria::expr()->in('user', array($user))
+        );
+
+        $repository = $this->_em->getRepository('Doctrine\Tests\Models\CMS\CmsAddress');
+        $addresses = $repository->matching($criteria);
+
+        $this->assertEquals(1, count($addresses));
+
+        $addresses = new ArrayCollection($repository->findAll());
+
+        $this->assertEquals(1, count($addresses->matching($criteria)));
+    }
+
+    public function testMatchingCriteriaContainsComparison()
+    {
+        $this->loadFixture();
+
+        $repository = $this->_em->getRepository('Doctrine\Tests\Models\CMS\CmsUser');
+
+        $users = $repository->matching(new Criteria(Criteria::expr()->contains('name', 'Foobar')));
+        $this->assertEquals(0, count($users));
+
+        $users = $repository->matching(new Criteria(Criteria::expr()->contains('name', 'Rom')));
+        $this->assertEquals(1, count($users));
+
+        $users = $repository->matching(new Criteria(Criteria::expr()->contains('status', 'dev')));
+        $this->assertEquals(2, count($users));
+    }
+
+    /**
+     * @group DDC-2478
+     */
+    public function testMatchingCriteriaNullAssocComparison()
+    {
+        $fixtures       = $this->loadFixtureUserEmail();
+        $user           = $this->_em->merge($fixtures[0]);
+        $repository     = $this->_em->getRepository('Doctrine\Tests\Models\CMS\CmsUser');
+        $criteriaIsNull = Criteria::create()->where(Criteria::expr()->isNull('email'));
+        $criteriaEqNull = Criteria::create()->where(Criteria::expr()->eq('email', null));
+
+        $user->setEmail(null);
+        $this->_em->persist($user);
+        $this->_em->flush();
+        $this->_em->clear();
+
+        $usersIsNull = $repository->matching($criteriaIsNull);
+        $usersEqNull = $repository->matching($criteriaEqNull);
+
+        $this->assertCount(1, $usersIsNull);
+        $this->assertCount(1, $usersEqNull);
+
+        $this->assertInstanceOf('Doctrine\Tests\Models\CMS\CmsUser', $usersIsNull[0]);
+        $this->assertInstanceOf('Doctrine\Tests\Models\CMS\CmsUser', $usersEqNull[0]);
+
+        $this->assertNull($usersIsNull[0]->getEmail());
+        $this->assertNull($usersEqNull[0]->getEmail());
     }
 
     /**

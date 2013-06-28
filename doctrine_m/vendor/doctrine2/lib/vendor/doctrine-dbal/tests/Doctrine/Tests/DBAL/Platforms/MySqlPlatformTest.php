@@ -9,11 +9,18 @@ use Doctrine\DBAL\Schema\TableDiff;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Index;
 
+
 class MySqlPlatformTest extends AbstractPlatformTestCase
 {
     public function createPlatform()
     {
         return new MysqlPlatform;
+    }
+
+    public function testModifyLimitQueryWitoutLimit()
+    {
+        $sql = $this->_platform->modifyLimitQuery('SELECT n FROM Foo', null , 10);
+        $this->assertEquals('SELECT n FROM Foo LIMIT 18446744073709551615 OFFSET 10',$sql);
     }
 
     public function testGenerateMixedCaseTableCreate()
@@ -75,7 +82,7 @@ class MySqlPlatformTest extends AbstractPlatformTestCase
 
     public function testGeneratesDDLSnippets()
     {
-        $this->assertEquals('SHOW DATABASES', $this->_platform->getShowDatabasesSQL());
+        $this->assertEquals('SHOW DATABASES', $this->_platform->getListDatabasesSQL());
         $this->assertEquals('CREATE DATABASE foobar', $this->_platform->getCreateDatabaseSQL('foobar'));
         $this->assertEquals('DROP DATABASE foobar', $this->_platform->getDropDatabaseSQL('foobar'));
         $this->assertEquals('DROP TABLE foobar', $this->_platform->getDropTableSQL('foobar'));
@@ -202,7 +209,7 @@ class MySqlPlatformTest extends AbstractPlatformTestCase
 
     public function getAlterTableColumnCommentsSQL()
     {
-        return array("ALTER TABLE mytable ADD quota INT NOT NULL COMMENT 'A comment', CHANGE bar baz VARCHAR(255) NOT NULL COMMENT 'B comment'");
+        return array("ALTER TABLE mytable ADD quota INT NOT NULL COMMENT 'A comment', CHANGE foo foo VARCHAR(255) NOT NULL, CHANGE bar baz VARCHAR(255) NOT NULL COMMENT 'B comment'");
     }
 
     public function getCreateTableColumnTypeCommentsSQL()
@@ -230,14 +237,24 @@ class MySqlPlatformTest extends AbstractPlatformTestCase
     protected function getQuotedColumnInPrimaryKeySQL()
     {
         return array(
-            'CREATE TABLE `quoted` (`key` VARCHAR(255) NOT NULL, PRIMARY KEY(`key`)) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = InnoDB'
+            'CREATE TABLE `quoted` (`create` VARCHAR(255) NOT NULL, PRIMARY KEY(`create`)) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = InnoDB'
         );
     }
 
     protected function getQuotedColumnInIndexSQL()
     {
         return array(
-            'CREATE TABLE `quoted` (`key` VARCHAR(255) NOT NULL, INDEX IDX_22660D028A90ABA9 (`key`)) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = InnoDB'
+            'CREATE TABLE `quoted` (`create` VARCHAR(255) NOT NULL, INDEX IDX_22660D028FD6E0FB (`create`)) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = InnoDB'
+        );
+    }
+
+    protected function getQuotedColumnInForeignKeySQL()
+    {
+        return array(
+            'CREATE TABLE `quoted` (`create` VARCHAR(255) NOT NULL, foo VARCHAR(255) NOT NULL, `bar` VARCHAR(255) NOT NULL) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = InnoDB',
+            'ALTER TABLE `quoted` ADD CONSTRAINT FK_WITH_RESERVED_KEYWORD FOREIGN KEY (`create`, foo, `bar`) REFERENCES `foreign` (`create`, bar, `foo-bar`)',
+            'ALTER TABLE `quoted` ADD CONSTRAINT FK_WITH_NON_RESERVED_KEYWORD FOREIGN KEY (`create`, foo, `bar`) REFERENCES foo (`create`, bar, `foo-bar`)',
+            'ALTER TABLE `quoted` ADD CONSTRAINT FK_WITH_INTENDED_QUOTATION FOREIGN KEY (`create`, foo, `bar`) REFERENCES `foo-bar` (`create`, bar, `foo-bar`)',
         );
     }
 
@@ -253,5 +270,29 @@ class MySqlPlatformTest extends AbstractPlatformTestCase
 
         $sql = $this->_platform->getCreateTableSQL($table);
         $this->assertEquals(array('CREATE TABLE fulltext_table (text LONGTEXT NOT NULL, FULLTEXT INDEX fulltext_text (text)) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE = MyISAM'), $sql);
+    }
+
+    public function testClobTypeDeclarationSQL()
+    {
+        $this->assertEquals('TINYTEXT', $this->_platform->getClobTypeDeclarationSQL(array('length' => 1)));
+        $this->assertEquals('TINYTEXT', $this->_platform->getClobTypeDeclarationSQL(array('length' => 255)));
+        $this->assertEquals('TEXT', $this->_platform->getClobTypeDeclarationSQL(array('length' => 256)));
+        $this->assertEquals('TEXT', $this->_platform->getClobTypeDeclarationSQL(array('length' => 65535)));
+        $this->assertEquals('MEDIUMTEXT', $this->_platform->getClobTypeDeclarationSQL(array('length' => 65536)));
+        $this->assertEquals('MEDIUMTEXT', $this->_platform->getClobTypeDeclarationSQL(array('length' => 16777215)));
+        $this->assertEquals('LONGTEXT', $this->_platform->getClobTypeDeclarationSQL(array('length' => 16777216)));
+        $this->assertEquals('LONGTEXT', $this->_platform->getClobTypeDeclarationSQL(array()));
+    }
+
+    public function testBlobTypeDeclarationSQL()
+    {
+        $this->assertEquals('TINYBLOB', $this->_platform->getBlobTypeDeclarationSQL(array('length' => 1)));
+        $this->assertEquals('TINYBLOB', $this->_platform->getBlobTypeDeclarationSQL(array('length' => 255)));
+        $this->assertEquals('BLOB', $this->_platform->getBlobTypeDeclarationSQL(array('length' => 256)));
+        $this->assertEquals('BLOB', $this->_platform->getBlobTypeDeclarationSQL(array('length' => 65535)));
+        $this->assertEquals('MEDIUMBLOB', $this->_platform->getBlobTypeDeclarationSQL(array('length' => 65536)));
+        $this->assertEquals('MEDIUMBLOB', $this->_platform->getBlobTypeDeclarationSQL(array('length' => 16777215)));
+        $this->assertEquals('LONGBLOB', $this->_platform->getBlobTypeDeclarationSQL(array('length' => 16777216)));
+        $this->assertEquals('LONGBLOB', $this->_platform->getBlobTypeDeclarationSQL(array()));
     }
 }

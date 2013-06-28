@@ -19,10 +19,11 @@
 
 namespace Doctrine\ORM\Mapping\Driver;
 
-use SimpleXMLElement,
-    Doctrine\Common\Persistence\Mapping\Driver\FileDriver,
-    Doctrine\Common\Persistence\Mapping\ClassMetadata,
-    Doctrine\ORM\Mapping\MappingException;
+use SimpleXMLElement;
+use Doctrine\Common\Persistence\Mapping\Driver\FileDriver;
+use Doctrine\ORM\Mapping\Builder\EntityListenerBuilder;
+use Doctrine\Common\Persistence\Mapping\ClassMetadata;
+use Doctrine\ORM\Mapping\MappingException;
 
 /**
  * XmlDriver is a metadata driver that enables mapping through XML files.
@@ -223,7 +224,7 @@ class XmlDriver extends FileDriver
             $metadata->table['options'] = $this->_parseOptions($xmlRoot->options->children());
         }
 
-        // The mapping assignement is done in 2 times as a bug might occurs on some php/xml lib versions
+        // The mapping assignment is done in 2 times as a bug might occurs on some php/xml lib versions
         // The internal SimpleXmlIterator get resetted, to this generate a duplicate field exception
         $mappings = array();
         // Evaluate <field ...> mappings
@@ -233,6 +234,7 @@ class XmlDriver extends FileDriver
 
                 if (isset($mapping['version'])) {
                     $metadata->setVersionMapping($mapping);
+                    unset($mapping['version']);
                 }
 
                 $metadata->mapField($mapping);
@@ -556,6 +558,26 @@ class XmlDriver extends FileDriver
                 $metadata->addLifecycleCallback((string)$lifecycleCallback['method'], constant('Doctrine\ORM\Events::' . (string)$lifecycleCallback['type']));
             }
         }
+
+        // Evaluate entity listener
+        if (isset($xmlRoot->{'entity-listeners'})) {
+            foreach ($xmlRoot->{'entity-listeners'}->{'entity-listener'} as $listenerElement) {
+                $className = (string) $listenerElement['class'];
+                // Evaluate the listener using naming convention.
+                if($listenerElement->count() === 0) {
+                    EntityListenerBuilder::bindEntityListener($metadata, $className);
+
+                    continue;
+                }
+
+                foreach ($listenerElement as $callbackElement) {
+                    $eventName   = (string) $callbackElement['type'];
+                    $methodName  = (string) $callbackElement['method'];
+
+                    $metadata->addEntityListener($eventName, $className, $methodName);
+                }
+            }
+        }
     }
 
     /**
@@ -665,7 +687,7 @@ class XmlDriver extends FileDriver
         }
 
         if (isset($fieldMapping['version']) && $fieldMapping['version']) {
-            $mapping['version'] = $fieldMapping['version'];
+            $mapping['version'] = $this->evaluateBoolean($fieldMapping['version']);
         }
 
         if (isset($fieldMapping['column-definition'])) {

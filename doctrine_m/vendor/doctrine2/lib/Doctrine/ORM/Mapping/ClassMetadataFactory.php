@@ -28,6 +28,7 @@ use Doctrine\Common\Persistence\Mapping\ReflectionService;
 use Doctrine\Common\Persistence\Mapping\ClassMetadata as ClassMetadataInterface;
 use Doctrine\Common\Persistence\Mapping\AbstractClassMetadataFactory;
 use Doctrine\ORM\Id\IdentityGenerator;
+use Doctrine\ORM\Id\BigIntegerIdentityGenerator;
 use Doctrine\ORM\Event\LoadClassMetadataEventArgs;
 
 /**
@@ -102,6 +103,10 @@ class ClassMetadataFactory extends AbstractClassMetadataFactory
             $class->setLifecycleCallbacks($parent->lifecycleCallbacks);
             $class->setChangeTrackingPolicy($parent->changeTrackingPolicy);
 
+            if ( ! empty($parent->customGeneratorDefinition)) {
+                $class->setCustomGeneratorDefinition($parent->customGeneratorDefinition);
+            }
+
             if ($parent->isMappedSuperclass) {
                 $class->setCustomRepositoryClass($parent->customRepositoryClassName);
             }
@@ -155,6 +160,10 @@ class ClassMetadataFactory extends AbstractClassMetadataFactory
             $this->addInheritedSqlResultSetMappings($class, $parent);
         }
 
+        if ($parent && !empty($parent->entityListeners) && empty($class->entityListeners)) {
+            $class->entityListeners = $parent->entityListeners;
+        }
+
         $class->setParentClasses($nonSuperclassParents);
 
         if ( $class->isRootEntity() && ! $class->isInheritanceTypeNone() && ! $class->discriminatorMap) {
@@ -166,7 +175,6 @@ class ClassMetadataFactory extends AbstractClassMetadataFactory
             $this->evm->dispatchEvent(Events::loadClassMetadata, $eventArgs);
         }
 
-        $this->wakeupReflection($class, $this->getReflectionService());
         $this->validateRuntimeMetadata($class, $parent);
     }
 
@@ -188,7 +196,7 @@ class ClassMetadataFactory extends AbstractClassMetadataFactory
         }
 
         $class->validateIdentifier();
-        $class->validateAssocations();
+        $class->validateAssociations();
         $class->validateLifecycleCallbacks($this->getReflectionService());
 
         // verify inheritance
@@ -314,7 +322,7 @@ class ClassMetadataFactory extends AbstractClassMetadataFactory
         foreach ($parentClass->associationMappings as $field => $mapping) {
             if ($parentClass->isMappedSuperclass) {
                 if ($mapping['type'] & ClassMetadata::TO_MANY && !$mapping['isOwningSide']) {
-                    throw MappingException::illegalToManyAssocationOnMappedSuperclass($parentClass->name, $field);
+                    throw MappingException::illegalToManyAssociationOnMappedSuperclass($parentClass->name, $field);
                 }
                 $mapping['sourceEntity'] = $subClass->name;
             }
@@ -440,9 +448,9 @@ class ClassMetadataFactory extends AbstractClassMetadataFactory
                 // <table>_<column>_seq in PostgreSQL for SERIAL columns.
                 // Not pretty but necessary and the simplest solution that currently works.
                 $sequenceName = null;
+                $fieldName    = $class->identifier ? $class->getSingleIdentifierFieldName() : null;
 
                 if ($this->targetPlatform instanceof Platforms\PostgreSQLPlatform) {
-                    $fieldName      = $class->getSingleIdentifierFieldName();
                     $columnName     = $class->getSingleIdentifierColumnName();
                     $quoted         = isset($class->fieldMappings[$fieldName]['quoted']) || isset($class->table['quoted']);
                     $sequenceName   = $class->getTableName() . '_' . $columnName . '_seq';
@@ -457,7 +465,12 @@ class ClassMetadataFactory extends AbstractClassMetadataFactory
                     $sequenceName = $this->em->getConfiguration()->getQuoteStrategy()->getSequenceName($definition, $class, $this->targetPlatform);
                 }
 
-                $class->setIdGenerator(new \Doctrine\ORM\Id\IdentityGenerator($sequenceName));
+                $generator = ($fieldName && $class->fieldMappings[$fieldName]['type'] === 'bigint')
+                    ? new BigIntegerIdentityGenerator($sequenceName)
+                    : new IdentityGenerator($sequenceName);
+
+                $class->setIdGenerator($generator);
+
                 break;
 
             case ClassMetadata::GENERATOR_TYPE_SEQUENCE:
