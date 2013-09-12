@@ -518,6 +518,7 @@ final class PersistentCollection implements Collection, Selectable
     public function get($key)
     {
         if ( ! $this->initialized
+            && $this->association['type'] === Mapping\ClassMetadataInfo::ONE_TO_MANY
             && $this->association['fetch'] === Mapping\ClassMetadataInfo::FETCH_EXTRA_LAZY
             && isset($this->association['indexBy'])
         ) {
@@ -756,6 +757,8 @@ final class PersistentCollection implements Collection, Selectable
      */
     public function key()
     {
+        $this->initialize();
+
         return $this->coll->key();
     }
 
@@ -764,6 +767,8 @@ final class PersistentCollection implements Collection, Selectable
      */
     public function current()
     {
+        $this->initialize();
+
         return $this->coll->current();
     }
 
@@ -772,6 +777,8 @@ final class PersistentCollection implements Collection, Selectable
      */
     public function next()
     {
+        $this->initialize();
+        
         return $this->coll->next();
     }
 
