@@ -205,6 +205,9 @@ class SQLServerPlatformTest extends AbstractPlatformTestCase
     {
         $sql = $this->_platform->modifyLimitQuery('SELECT * FROM (SELECT u.id as uid, u.name as uname ORDER BY u.name DESC) dctrn_result', 10);
         $this->assertEquals('SELECT * FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY u.name DESC) AS doctrine_rownum FROM (SELECT u.id as uid, u.name as uname) dctrn_result) AS doctrine_tbl WHERE doctrine_rownum BETWEEN 1 AND 10', $sql);
+
+        $sql = $this->_platform->modifyLimitQuery('SELECT * FROM (SELECT u.id, u.name ORDER BY u.name DESC) dctrn_result', 10);
+        $this->assertEquals('SELECT * FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY name DESC) AS doctrine_rownum FROM (SELECT u.id, u.name) dctrn_result) AS doctrine_tbl WHERE doctrine_rownum BETWEEN 1 AND 10', $sql);
     }
 
     public function testModifyLimitQueryWithSubSelectAndMultipleOrder()
@@ -214,6 +217,9 @@ class SQLServerPlatformTest extends AbstractPlatformTestCase
 
         $sql = $this->_platform->modifyLimitQuery('SELECT * FROM (SELECT u.id uid, u.name uname ORDER BY u.name DESC, id ASC) dctrn_result', 10, 5);
         $this->assertEquals('SELECT * FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY u.name DESC, id ASC) AS doctrine_rownum FROM (SELECT u.id uid, u.name uname) dctrn_result) AS doctrine_tbl WHERE doctrine_rownum BETWEEN 6 AND 15', $sql);
+
+        $sql = $this->_platform->modifyLimitQuery('SELECT * FROM (SELECT u.id, u.name ORDER BY u.name DESC, id ASC) dctrn_result', 10, 5);
+        $this->assertEquals('SELECT * FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY name DESC, id ASC) AS doctrine_rownum FROM (SELECT u.id, u.name) dctrn_result) AS doctrine_tbl WHERE doctrine_rownum BETWEEN 6 AND 15', $sql);
     }
 
     public function testModifyLimitQueryWithFromColumnNames()
@@ -316,5 +322,24 @@ class SQLServerPlatformTest extends AbstractPlatformTestCase
             'ALTER TABLE [quoted] ADD CONSTRAINT FK_WITH_NON_RESERVED_KEYWORD FOREIGN KEY ([create], foo, [bar]) REFERENCES foo ([create], bar, [foo-bar])',
             'ALTER TABLE [quoted] ADD CONSTRAINT FK_WITH_INTENDED_QUOTATION FOREIGN KEY ([create], foo, [bar]) REFERENCES [foo-bar] ([create], bar, [foo-bar])',
         );
+    }
+
+    public function testGetCreateSchemaSQL()
+    {
+        $schemaName = 'schema';
+        $sql = $this->_platform->getCreateSchemaSQL($schemaName);
+        $this->assertEquals('CREATE SCHEMA ' . $schemaName, $sql);
+    }
+
+    public function testSchemaNeedsCreation()
+    {
+        $schemaNames = array(
+            'dbo' => false,
+            'schema' => true,
+        );
+        foreach ($schemaNames as $name => $expected) {
+            $actual = $this->_platform->schemaNeedsCreation($name);
+            $this->assertEquals($expected, $actual);
+        }
     }
 }

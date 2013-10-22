@@ -132,6 +132,14 @@ class SQLServerPlatform extends AbstractPlatform
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public function getDefaultSchemaName()
+    {
+        return 'dbo';
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function hasNativeGuidType()
@@ -161,6 +169,22 @@ class SQLServerPlatform extends AbstractPlatform
     public function supportsCreateDropDatabase()
     {
         return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getCreateSchemaSQL($schemaName)
+    {
+        return 'CREATE SCHEMA ' . $schemaName;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function schemaNeedsCreation($schemaName)
+    {
+        return $schemaName !== 'dbo';
     }
 
     /**
@@ -852,14 +876,22 @@ class SQLServerPlatform extends AbstractPlatform
             }
         }
 
+        $isWrapped = (preg_match('/SELECT DISTINCT .* FROM \(.*\) dctrn_result/', $query)) ? true : false;
+
         //Find alias for each colum used in ORDER BY
         if ( ! empty($orderbyColumns)) {
             foreach ($orderbyColumns as $column) {
 
-                $pattern    = sprintf('/%s\.(%s)\s*(AS)?\s*([^,\s\)]*)/i', $column['table'], $column['column']);
-                $overColumn = preg_match($pattern, $query, $matches)
-                    ? ($column['hasTable'] ? $column['table']  . '.' : '') . $column['column'] 
-                    : $column['column'];
+                $pattern    = sprintf('/%s\.%s\s+(?:AS\s+)?([^,\s)]+)/i', $column['table'], $column['column']);
+
+                if ($isWrapped) {
+                    $overColumn = preg_match($pattern, $query, $matches)
+                        ? $matches[1] : '';
+                } else {
+                    $overColumn = preg_match($pattern, $query, $matches)
+                        ? ($column['hasTable'] ? $column['table']  . '.' : '') . $column['column']
+                        : $column['column'];
+                }
 
                 if (isset($column['sort'])) {
                     $overColumn .= ' ' . $column['sort'];

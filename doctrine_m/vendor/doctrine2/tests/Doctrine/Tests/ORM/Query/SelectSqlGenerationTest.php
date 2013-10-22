@@ -394,6 +394,17 @@ class SelectSqlGenerationTest extends \Doctrine\Tests\OrmTestCase
         );
     }
 
+    /**
+     * @group DDC-2668
+     */
+    public function testSupportsTrimLeadingZeroString()
+    {
+        $this->assertSqlGeneration(
+            "SELECT u.name FROM Doctrine\Tests\Models\CMS\CmsUser u WHERE TRIM(TRAILING '0' FROM u.name) != ''",
+            "SELECT c0_.name AS name0 FROM cms_users c0_ WHERE TRIM(TRAILING '0' FROM c0_.name) <> ''"
+        );
+    }
+
     // Ticket 894
     public function testSupportsBetweenClauseWithPositionalParameters()
     {
@@ -1573,7 +1584,7 @@ class SelectSqlGenerationTest extends \Doctrine\Tests\OrmTestCase
     {
         $this->assertSqlGeneration(
             'SELECT u, u.status AS st FROM Doctrine\Tests\Models\CMS\CmsUser u GROUP BY st',
-            'SELECT c0_.id AS id0, c0_.status AS status1, c0_.username AS username2, c0_.name AS name3, c0_.status AS status4 FROM cms_users c0_ GROUP BY status4'
+            'SELECT c0_.id AS id0, c0_.status AS status1, c0_.username AS username2, c0_.name AS name3, c0_.status AS status4 FROM cms_users c0_ GROUP BY c0_.status'
         );
     }
 
@@ -1627,6 +1638,13 @@ class SelectSqlGenerationTest extends \Doctrine\Tests\OrmTestCase
         $this->assertSqlGeneration(
             'SELECT u FROM Doctrine\Tests\Models\CMS\CmsUser u where 100 < (u.id + u.id) * u.id ',
             'SELECT c0_.id AS id0, c0_.status AS status1, c0_.username AS username2, c0_.name AS name3 FROM cms_users c0_ WHERE 100 < (c0_.id + c0_.id) * c0_.id'
+        );
+    }
+
+    public function testSupportsParenthesisExpressionInSubSelect() {
+        $this->assertSqlGeneration(
+            'SELECT u.id, (SELECT (1000*SUM(subU.id)/SUM(subU.id)) FROM Doctrine\Tests\Models\CMS\CmsUser subU where subU.id = u.id) AS subSelect FROM Doctrine\Tests\Models\CMS\CmsUser u',
+            'SELECT c0_.id AS id0, (SELECT (1000 * SUM(c1_.id) / SUM(c1_.id)) FROM cms_users c1_ WHERE c1_.id = c0_.id) AS sclr1 FROM cms_users c0_'
         );
     }
 
@@ -2257,4 +2275,3 @@ class DDC1474Entity
     }
 
 }
-

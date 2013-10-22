@@ -2,7 +2,7 @@ Requirements
 ------------
 
 * linux or bsd system
-* PHP 5.2 or greater
+* PHP 5.3 or greater
 * pdo_sqlite
 
 Running All The Benchmarks
