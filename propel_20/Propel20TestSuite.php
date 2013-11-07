@@ -73,7 +73,6 @@ class Propel20TestSuite extends AbstractTestSuite
 		$books = BookQuery::create()
 			->filterByPrice(array('min' => $i))
 			->limit(5)
-            ->setFormatter(\Propel\Runtime\ActiveQuery\ModelCriteria::FORMAT_ON_DEMAND)
 			->find($this->con);
 		foreach ($books as $book) {
 		}
