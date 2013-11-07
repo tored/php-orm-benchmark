@@ -59,13 +59,15 @@ abstract class AbstractTestSuite
 	public function runTest($methodName, $nbTest = self::NB_TEST)
 	{
 		$this->clearCache();
-		$this->beginTransaction();
+
 		$timer = new sfTimer();
+        $this->beginTransaction();
 		for($i=0; $i<$nbTest; $i++) {
 			$this->$methodName($i);
 		}
+        $this->commit();
 		$t = $timer->getElapsedTime();
-		$this->commit();
+
 		return $t * 1000;
 	}
 	
