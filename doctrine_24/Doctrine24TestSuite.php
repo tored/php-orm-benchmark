@@ -14,12 +14,10 @@ class Doctrine24TestSuite extends AbstractTestSuite
     {
       require_once "vendor/autoload.php";
 
-      $cache = new \Doctrine\Common\Cache\ArrayCache;
       $config = new Doctrine\ORM\Configuration;
-      $config->setMetadataCacheImpl($cache);
       $driverImpl = $config->newDefaultAnnotationDriver(__DIR__ . '/models');
       $config->setMetadataDriverImpl($driverImpl);
-      $config->setQueryCacheImpl($cache);
+      //$config->setQueryCacheImpl($cache);
       $config->setProxyDir(__DIR__ . '/proxies');
       $config->setProxyNamespace('Proxies');
       $config->setAutoGenerateProxyClasses(false); // no code generation in production
