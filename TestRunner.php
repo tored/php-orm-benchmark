@@ -3,6 +3,7 @@ echo "| Library                          | Insert | findPk | complex| hydrate|  
 echo "| --------------------------------:| ------:| ------:| ------:| ------:| ------:| ------------:| ------:|\n";
 
 passthru('php raw_pdo/TestRunner.php');
+passthru('php lessql/TestRunner.php');
 passthru('php propel_16/TestRunner.php');
 passthru('php propel_16_with_cache/TestRunner.php');
 passthru('php propel_17/TestRunner.php');
