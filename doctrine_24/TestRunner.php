@@ -1,5 +1,4 @@
 <?php
-
 passthru(PHP_BINARY . ' ' .dirname(__FILE__).'/TestRunnerDoctrine24TestSuite.php');
 passthru(PHP_BINARY . ' ' .dirname(__FILE__).'/TestRunnerDoctrine24WithCacheTestSuite.php');
 
@@ -9,4 +8,3 @@ passthru(PHP_BINARY . ' ' .dirname(__FILE__).'/TestRunnerDoctrine24WithCacheTest
 passthru(PHP_BINARY . ' ' .dirname(__FILE__).'/TestRunnerDoctrine24ArrayHydrateTestSuite.php');
 passthru(PHP_BINARY . ' ' .dirname(__FILE__).'/TestRunnerDoctrine24ScalarHydrateTestSuite.php');
 passthru(PHP_BINARY . ' ' .dirname(__FILE__).'/TestRunnerDoctrine24WithoutProxiesTestSuite.php');
-
